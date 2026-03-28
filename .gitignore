@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Frontend build artifacts
+frontend/.next/
+frontend/node_modules/
+frontend/.npm-cache/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+
+# OS/editor noise
+.DS_Store
+*.log
+
+# Generated evaluation outputs
+evaluation/reports/sample_v1_*.json
