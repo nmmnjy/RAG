@@ -1,0 +1,74 @@
+{
+  "doc_id": "doc_002",
+  "kb_id": "kb_001",
+  "source": "upload",
+  "format": "markdown",
+  "version": "v1",
+  "status": "succeeded",
+  "sections": [
+    {
+      "section_id": "sec_intro",
+      "title": "概览",
+      "heading_level": 1,
+      "section_path": [
+        "概览"
+      ],
+      "page_start": 1,
+      "page_end": 1,
+      "blocks": [
+        {
+          "block_id": "blk_p_1",
+          "block_type": "paragraph",
+          "content": "这是一个用于语义分块的样例文档。它包含普通段落、列表、代码块和表格，目标是验证默认策略在特殊结构上的基础行为。",
+          "section_path": [
+            "概览"
+          ],
+          "page_no": 1,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_list_1",
+          "block_type": "paragraph",
+          "content": "- 第一条规则\n- 第二条规则",
+          "section_path": [
+            "概览"
+          ],
+          "page_no": 1,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_code_1",
+          "block_type": "paragraph",
+          "content": "```python\nprint('hello chunk')\n```",
+          "section_path": [
+            "概览"
+          ],
+          "page_no": 1,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_table_1",
+          "block_type": "table",
+          "content": "",
+          "section_path": [
+            "概览"
+          ],
+          "page_no": 1,
+          "table_rows": [
+            [
+              "字段",
+              "说明"
+            ],
+            [
+              "chunk_id",
+              "分块唯一标识"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "source_file": "sample_02.md"
+  }
+}

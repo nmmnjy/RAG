@@ -1,0 +1,107 @@
+{
+  "dataset_id": "sample_v1",
+  "dataset_version": "2026.03.28",
+  "description": "模块07离线评测样例数据集（规则评测 + mock 流程）",
+  "cases": [
+    {
+      "case_id": "case_001",
+      "case_name": "基础结构化到问答全链路",
+      "query_text": "chunk_id 是什么",
+      "structured_document": {
+        "doc_id": "doc_002",
+        "kb_id": "kb_001",
+        "source": "upload",
+        "format": "markdown",
+        "version": "v1",
+        "status": "succeeded",
+        "sections": [
+          {
+            "section_id": "sec_intro",
+            "title": "概览",
+            "heading_level": 1,
+            "section_path": [
+              "概览"
+            ],
+            "page_start": 1,
+            "page_end": 1,
+            "blocks": [
+              {
+                "block_id": "blk_p_1",
+                "block_type": "paragraph",
+                "content": "这是一个用于语义分块的样例文档。它包含普通段落、列表、代码块和表格，目标是验证默认策略在特殊结构上的基础行为。",
+                "section_path": [
+                  "概览"
+                ],
+                "page_no": 1,
+                "table_rows": null
+              },
+              {
+                "block_id": "blk_list_1",
+                "block_type": "paragraph",
+                "content": "- 第一条规则\n- 第二条规则",
+                "section_path": [
+                  "概览"
+                ],
+                "page_no": 1,
+                "table_rows": null
+              },
+              {
+                "block_id": "blk_code_1",
+                "block_type": "paragraph",
+                "content": "```python\nprint('hello chunk')\n```",
+                "section_path": [
+                  "概览"
+                ],
+                "page_no": 1,
+                "table_rows": null
+              },
+              {
+                "block_id": "blk_table_1",
+                "block_type": "table",
+                "content": "",
+                "section_path": [
+                  "概览"
+                ],
+                "page_no": 1,
+                "table_rows": [
+                  [
+                    "字段",
+                    "说明"
+                  ],
+                  [
+                    "chunk_id",
+                    "分块唯一标识"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "source_file": "sample_02.md"
+        }
+      },
+      "retrieve_config": {
+        "top_k": 3,
+        "vector_top_k": 6,
+        "keyword_top_k": 6,
+        "enable_rerank": false,
+        "use_doc_filter": true
+      },
+      "answer_config": {
+        "max_context_chunks": 3,
+        "min_score_threshold": 0.2,
+        "min_evidence_chunks": 1,
+        "refusal_answer_text": "抱歉，我当前无法基于现有检索证据可靠回答这个问题。"
+      },
+      "assertions": {
+        "min_section_count": 1,
+        "min_chunk_count": 1,
+        "min_retrieval_hits": 1,
+        "expected_refuse_reason": null,
+        "expected_top_hit_chunk_id": null,
+        "require_non_empty_citations": true
+      }
+    }
+  ]
+}
