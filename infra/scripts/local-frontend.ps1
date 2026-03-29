@@ -30,7 +30,9 @@ try {
   if ($Action -eq "dev") {
     Write-Host "[frontend] npm run dev"
     npm run dev
-    exit $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) {
+      throw "frontend dev failed."
+    }
   } else {
     Write-Host "[frontend] npm run build"
     npm run build
@@ -38,10 +40,9 @@ try {
       Write-Host "[frontend] npm run build failed, fallback to webpack build"
       npx next build --webpack
       if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+        throw "frontend build failed."
       }
     }
-    exit $LASTEXITCODE
   }
 } finally {
   Pop-Location

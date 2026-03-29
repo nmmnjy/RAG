@@ -1,6 +1,9 @@
 import json
 from pathlib import Path
 
+import pytest
+
+from app.core.errors import AppError, ERROR_CODE
 from app.repositories.vector_repository import InMemoryVectorRepository
 from app.schemas.vectorization import (
     VectorQueryRequest,
@@ -10,7 +13,12 @@ from app.schemas.vectorization import (
 )
 from app.schemas.document_parse import StructuredDocument
 from app.services.chunking_service import chunking_service
-from app.services.embedding_provider import MockEmbeddingProvider
+from app.services.embedding_provider import (
+    EmbeddingErrorCode,
+    EmbeddingProvider,
+    EmbeddingProviderError,
+    MockEmbeddingProvider,
+)
 from app.services.vector_store_service import VectorStoreService
 from app.services.vectorization_service import VectorizationService
 
@@ -120,3 +128,64 @@ def test_incremental_update_should_only_upsert_changed_chunks_and_cleanup_stale(
     assert hits
     assert hits[0].chunk_id == mutated.chunks[0].chunk_id
     assert hits[0].score_vector > 0
+
+
+def test_repeated_initial_build_should_be_idempotent_on_vector_primary_key() -> None:
+    document = _load_sample_document()
+    chunk_result = chunking_service.build_chunks(document)
+    store_service, repository = _build_store_service()
+    vector_input = _as_vectorization_input(chunk_result)
+
+    first = store_service.write_vectors(
+        VectorWriteRequest(mode=VectorWriteMode.initial_build, vectorization_input=vector_input)
+    )
+    second = store_service.write_vectors(
+        VectorWriteRequest(mode=VectorWriteMode.initial_build, vectorization_input=vector_input)
+    )
+
+    stored = repository.list_by_doc_id(kb_id=document.kb_id, doc_id=document.doc_id)
+    assert first.upserted_count == chunk_result.chunk_count
+    assert second.upserted_count == chunk_result.chunk_count
+    assert len(stored) == chunk_result.chunk_count
+
+
+class _AlwaysFailEmbeddingProvider(EmbeddingProvider):
+    @property
+    def provider_name(self) -> str:
+        return "failing"
+
+    @property
+    def model_name(self) -> str:
+        return "failing-model"
+
+    @property
+    def embedding_dim(self) -> int:
+        return 3
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        raise EmbeddingProviderError(
+            code=EmbeddingErrorCode.dim_mismatch.value,
+            message="Embedding dimension mismatch: expected 3, got 2.",
+        )
+
+
+def test_write_vectors_should_raise_embedding_dim_mismatch_error_code_after_retry() -> None:
+    document = _load_sample_document()
+    chunk_result = chunking_service.build_chunks(document)
+    repository = InMemoryVectorRepository()
+    vectorization_service = VectorizationService(provider=_AlwaysFailEmbeddingProvider())
+    store_service = VectorStoreService(
+        repository=repository,
+        vectorization_service=vectorization_service,
+        embedding_max_retry=2,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        store_service.write_vectors(
+            VectorWriteRequest(
+                mode=VectorWriteMode.initial_build,
+                vectorization_input=_as_vectorization_input(chunk_result),
+            )
+        )
+
+    assert exc_info.value.code == ERROR_CODE.EMBEDDING_DIM_MISMATCH

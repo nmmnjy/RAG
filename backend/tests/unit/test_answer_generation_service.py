@@ -1,12 +1,10 @@
-import pytest
-
 from app.schemas.answer_generation import AnswerGenerationRequest
 from app.schemas.retrieval import HybridRetrieveHit, HybridRetrieveResult
 from app.services.answer_generation_service import AnswerGenerationService
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 
-def _build_retrieval_result(*, score_final: float = 0.78) -> HybridRetrieveResult:
+def _build_retrieval_result(*, score_final: float = 0.78, content: str = "答案生成必须绑定 citation，确保前端可追溯。") -> HybridRetrieveResult:
     return HybridRetrieveResult(
         kb_id="kb_01",
         query_text="RAG 如何做溯源",
@@ -16,7 +14,7 @@ def _build_retrieval_result(*, score_final: float = 0.78) -> HybridRetrieveResul
                 chunk_id="chunk_01",
                 doc_id="doc_01",
                 kb_id="kb_01",
-                content="答案生成必须绑定 citation，确保前端可追溯。",
+                content=content,
                 section_path=["规范", "问答"],
                 score_vector=0.8,
                 score_keyword=0.7,
@@ -39,6 +37,7 @@ def test_answer_generation_should_return_stable_fields() -> None:
         kb_id="kb_01",
         query_text="RAG 如何做溯源",
         retrieval_result=_build_retrieval_result(),
+        enable_debug=True,
     )
 
     result = service.generate(request)
@@ -109,6 +108,7 @@ def test_answer_generation_should_fallback_to_mock_when_provider_failed() -> Non
         kb_id="kb_01",
         query_text="RAG 如何做溯源",
         retrieval_result=_build_retrieval_result(),
+        enable_debug=True,
     )
 
     result = service.generate(request)
@@ -130,5 +130,22 @@ def test_answer_generation_should_raise_when_provider_failed_and_no_fallback() -
         retrieval_result=_build_retrieval_result(),
     )
 
-    with pytest.raises(LLMProviderError):
-        service.generate(request)
+    result = service.generate(request)
+    assert result.answer
+    assert result.citations == []
+    assert result.confidence == 0.0
+    assert result.refuse_reason == "QA_LLM_PROVIDER_ERROR"
+
+
+def test_answer_generation_should_refuse_when_citation_missing() -> None:
+    service = AnswerGenerationService()
+    request = AnswerGenerationRequest(
+        kb_id="kb_01",
+        query_text="RAG 如何做溯源",
+        retrieval_result=_build_retrieval_result(content=""),
+    )
+    result = service.generate(request)
+    assert result.answer
+    assert result.citations == []
+    assert result.confidence == 0.0
+    assert result.refuse_reason == "QA_CITATION_MISSING"

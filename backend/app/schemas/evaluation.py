@@ -23,6 +23,12 @@ class GateRuleType(str, Enum):
     pass_rate_min = "pass_rate_min"
     dimension_must_pass = "dimension_must_pass"
     check_name_must_pass = "check_name_must_pass"
+    real_mode_no_fallback = "real_mode_no_fallback"
+
+
+class RuntimeEvalPolicy(BaseModel):
+    declared_real_mode: bool | None = None
+    forbid_fallback_when_real_mode: bool = False
 
 
 class RetrievalEvalConfig(BaseModel):
@@ -66,6 +72,7 @@ class OfflineEvaluationDatasetInput(BaseModel):
     dataset_id: str
     dataset_version: str
     description: str = ""
+    runtime_policy: RuntimeEvalPolicy = Field(default_factory=RuntimeEvalPolicy)
     cases: list[OfflineEvaluationCaseInput] = Field(default_factory=list)
 
 
@@ -73,6 +80,7 @@ class OfflineEvaluationCaseOutput(BaseModel):
     chunk_build_result: ChunkBuildResult
     retrieval_result: HybridRetrieveResult
     answer_result: AnswerGenerationResult
+    provider_runtime: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvaluationCheckResult(BaseModel):

@@ -25,6 +25,12 @@
 - 一键验收：`scripts/local-acceptance.ps1 -EvalDataset qa_demo_v1`
 - 运行手册：`runbooks/local-demo-runbook.md`
 
+## Real-Mode 联调验收
+- real 预检：`scripts/preflight.ps1 -Environment test -Profile real -RealMode`
+- real 离线评测：`scripts/local-evaluation.ps1 -Dataset qa_demo_v1 -RealMode -ForbidFallbackWhenRealMode`
+- real 一键验收：`scripts/local-real-acceptance.ps1 -Environment test -EvalDataset qa_demo_v1 -ForbidFallbackWhenRealMode`
+- real 手册：`runbooks/real-mode-acceptance-runbook.md`
+
 ## 对齐 00 模块基线
 - 环境变量统一使用大写下划线命名。
 - API 路径保持版本前缀（示例：`/api/v1/...`）。

@@ -4,6 +4,7 @@ from app.schemas.evaluation import (
     EvaluationCheckResult,
     EvaluationDimension,
     OfflineEvaluationCaseReport,
+    OfflineEvaluationDatasetInput,
     OfflineEvaluationReport,
     OfflineEvaluationSummary,
 )
@@ -54,3 +55,19 @@ def test_offline_evaluation_report_should_be_serializable() -> None:
         ],
     )
     assert "sample_v1" in report.model_dump_json()
+
+
+def test_offline_evaluation_dataset_runtime_policy_should_be_validated() -> None:
+    payload = {
+        "dataset_id": "qa_demo_v1",
+        "dataset_version": "2026.03.29",
+        "description": "runtime policy schema validation",
+        "runtime_policy": {
+            "declared_real_mode": True,
+            "forbid_fallback_when_real_mode": True,
+        },
+        "cases": [],
+    }
+    dataset = OfflineEvaluationDatasetInput.model_validate(payload)
+    assert dataset.runtime_policy.declared_real_mode is True
+    assert dataset.runtime_policy.forbid_fallback_when_real_mode is True

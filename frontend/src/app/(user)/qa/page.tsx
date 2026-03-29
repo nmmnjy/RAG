@@ -1,19 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { SectionBlock } from "@/components/layout/section-block";
 import { askQuestion } from "@/features/qa/service";
+import { buildQaWorkflowState, normalizeInt, type QaViewState } from "@/features/qa/qa-state";
 import { buildWorkflowNodes } from "@/features/workflow/state-machine";
 import { isApiError } from "@/lib/http";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
 import type { QaResult } from "@/types/domain";
-import type { WorkflowState } from "@/types/workflow";
-
-type QaViewState = "idle" | "loading" | "answered" | "refused" | "failed";
 
 const statusVariantMap = {
   todo: "default",
@@ -22,59 +21,6 @@ const statusVariantMap = {
   warning: "warning",
   error: "danger"
 } as const;
-
-function normalizeInt(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-  return Math.min(max, Math.max(min, Math.floor(value)));
-}
-
-function buildQaWorkflowState(state: QaViewState): WorkflowState {
-  if (state === "idle") {
-    return {
-      upload_state: "uploaded",
-      parse_state: "parsed",
-      index_state: "indexed",
-      retrieve_state: "idle",
-      answer_state: "idle"
-    };
-  }
-  if (state === "loading") {
-    return {
-      upload_state: "uploaded",
-      parse_state: "parsed",
-      index_state: "indexed",
-      retrieve_state: "retrieving",
-      answer_state: "answering"
-    };
-  }
-  if (state === "answered") {
-    return {
-      upload_state: "uploaded",
-      parse_state: "parsed",
-      index_state: "indexed",
-      retrieve_state: "retrieved",
-      answer_state: "answered"
-    };
-  }
-  if (state === "refused") {
-    return {
-      upload_state: "uploaded",
-      parse_state: "parsed",
-      index_state: "indexed",
-      retrieve_state: "empty",
-      answer_state: "refused"
-    };
-  }
-  return {
-    upload_state: "uploaded",
-    parse_state: "parsed",
-    index_state: "indexed",
-    retrieve_state: "failed",
-    answer_state: "failed"
-  };
-}
 
 export default function QaPage(): React.JSX.Element {
   const [kbId, setKbId] = useState("kb_hr");
@@ -208,6 +154,7 @@ export default function QaPage(): React.JSX.Element {
                 state: {qaState}
               </Badge>
             </div>
+            {qaState === "loading" ? <p className="text-sm text-[#5a6151]">请求进行中，请稍候...</p> : null}
           </form>
         </Card>
       </SectionBlock>
@@ -233,6 +180,7 @@ export default function QaPage(): React.JSX.Element {
               <CardDescription className="text-[var(--danger)]">
                 {errorInfo.code}: {errorInfo.message}
               </CardDescription>
+              {errorInfo.code === "RETR_TIMEOUT" ? <p className="text-xs text-[#8a2525]">请求超时，请稍后重试或降低检索规模参数。</p> : null}
               <p className="text-xs text-[#5a6151]">request_id={errorInfo.request_id} trace_id={errorInfo.trace_id}</p>
             </div>
           ) : null}
@@ -259,21 +207,27 @@ export default function QaPage(): React.JSX.Element {
                         </p>
                         <p className="mt-1 text-[#4f5645]">{item.snippet}</p>
                         <p className="mt-1 text-xs text-[#5a6151]">
-                          citation_id={item.citation_id} chunk_id={item.chunk_id} score_final={item.score_final}
+                          citation_id={item.citation_id} chunk_id={item.chunk_id} doc_id={item.doc_id} score_final={item.score_final}
                         </p>
                         <pre className="mt-1 overflow-x-auto text-xs text-[#5a6151]">{JSON.stringify(item.citation, null, 2)}</pre>
+                        <Link
+                          href={`/citations/${item.citation_id}?chunk_id=${encodeURIComponent(item.chunk_id)}&doc_id=${encodeURIComponent(item.doc_id)}&section_path=${encodeURIComponent(
+                            item.section_path.join(" / ")
+                          )}&snippet=${encodeURIComponent(item.snippet)}`}
+                          className="mt-2 inline-block text-xs text-[var(--brand)] hover:underline"
+                        >
+                          查看引用详情
+                        </Link>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
               {qaResult.debug ? (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">debug</h4>
-                  <pre className="overflow-x-auto rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[#5a6151]">
-                    {JSON.stringify(qaResult.debug, null, 2)}
-                  </pre>
-                </div>
+                <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+                  <summary className="cursor-pointer text-sm font-medium">debug（点击展开）</summary>
+                  <pre className="mt-2 overflow-x-auto text-xs text-[#5a6151]">{JSON.stringify(qaResult.debug, null, 2)}</pre>
+                </details>
               ) : null}
               {apiMeta ? (
                 <p className="text-xs text-[#5a6151]">

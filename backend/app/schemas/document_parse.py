@@ -74,6 +74,14 @@ class ParseTaskCreateRequest(BaseModel):
     version: str
 
 
+class ParseUploadRequest(BaseModel):
+    doc_id: str
+    kb_id: str
+    filename: str
+    version: str
+    file_content_base64: str
+
+
 class ParseTask(BaseModel):
     task_id: str
     doc_id: str

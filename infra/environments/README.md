@@ -30,6 +30,7 @@
 - `LLM_PROVIDER_ENABLE_REAL`
 - `LLM_PROVIDER_FALLBACK_TO_MOCK`
 - 本地演示建议直接基于：`.env.local-demo.example`
+- real-mode 联调建议基于：`.env.real-mode.example`
 
 ## 5. 文件说明
 - `.env.shared.example`：跨环境通用键。
@@ -37,3 +38,4 @@
 - `.env.test.example`：测试环境覆盖项。
 - `.env.prod.example`：生产环境覆盖项（仅占位，不含真实值）。
 - `.env.local-demo.example`：本地演示（前端+后端+评测）最小可运行模板。
+- `.env.real-mode.example`：真实 provider 联调验收模板（需填真实密钥）。

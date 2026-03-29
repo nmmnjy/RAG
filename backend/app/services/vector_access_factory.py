@@ -54,6 +54,8 @@ def build_vector_access_runtime(runtime_settings: Settings | None = None) -> Vec
     vector_store_service = VectorStoreService(
         repository=vector_repository,
         vectorization_service=vectorization_service,
+        embedding_max_retry=resolved_settings.embedding_max_retry,
+        repository_max_retry=resolved_settings.vector_repository_max_retry,
     )
     return VectorAccessRuntime(
         embedding_provider=embedding_provider,
@@ -61,4 +63,3 @@ def build_vector_access_runtime(runtime_settings: Settings | None = None) -> Vec
         vectorization_service=vectorization_service,
         vector_store_service=vector_store_service,
     )
-

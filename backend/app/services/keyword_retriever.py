@@ -40,6 +40,8 @@ class InMemoryKeywordRetriever(KeywordRetriever):
             }
 
     def search(self, request: KeywordQueryRequest) -> list[KeywordQueryHit]:
+        if request.top_k == 0:
+            return []
         query_terms = _tokenize(request.query_text)
         if not query_terms:
             return []
@@ -82,6 +84,5 @@ class InMemoryKeywordRetriever(KeywordRetriever):
                     metadata=document.get("metadata", {}),
                 )
             )
-        hits.sort(key=lambda item: item.score_keyword, reverse=True)
+        hits.sort(key=lambda item: (-item.score_keyword, item.chunk_id))
         return hits[: request.top_k]
-

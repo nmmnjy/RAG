@@ -1,0 +1,44 @@
+{
+  "dataset_id": "hybrid_retrieval_minimal_v1",
+  "description": "Minimal offline cases for comparing keyword-only and hybrid retrieval ranking.",
+  "default_params": {
+    "top_k": 1,
+    "vector_top_k": 20,
+    "keyword_top_k": 20,
+    "enable_rerank": false,
+    "fusion_config": {
+      "strategy_name": "weighted_sum",
+      "normalization_method": "min_max",
+      "vector_weight": 0.6,
+      "keyword_weight": 0.4
+    }
+  },
+  "cases": [
+    {
+      "case_id": "case_01",
+      "query_text": "q1",
+      "expected_top_chunk_id": "chunk_good",
+      "vector_scores": {
+        "chunk_good": 0.95,
+        "chunk_bad": 0.1
+      },
+      "keyword_scores": {
+        "chunk_good": 0.2,
+        "chunk_bad": 0.9
+      }
+    },
+    {
+      "case_id": "case_02",
+      "query_text": "q2",
+      "expected_top_chunk_id": "chunk_good_2",
+      "vector_scores": {
+        "chunk_good_2": 0.9,
+        "chunk_bad_2": 0.2
+      },
+      "keyword_scores": {
+        "chunk_good_2": 0.1,
+        "chunk_bad_2": 0.85
+      }
+    }
+  ]
+}

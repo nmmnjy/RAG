@@ -18,6 +18,9 @@ from app.services.refusal_policy import RefusalPolicy
 
 
 class AnswerGenerationService:
+    REFUSE_REASON_LLM_PROVIDER_ERROR = "QA_LLM_PROVIDER_ERROR"
+    REFUSE_REASON_CITATION_MISSING = "QA_CITATION_MISSING"
+
     def __init__(
         self,
         llm_provider: LLMProvider | None = None,
@@ -53,11 +56,24 @@ class AnswerGenerationService:
                 citations=[],
                 confidence=0.0,
                 refuse_reason=refusal.refuse_reason,
-                debug={"selected_hit_count": len(selected_hits)},
+                debug=self._build_debug(
+                    request.enable_debug,
+                    {"selected_hit_count": len(selected_hits)},
+                ),
             )
 
-        context_blocks = self._build_context_blocks(selected_hits)
-        llm_request = LLMGenerateRequest(query_text=request.query_text, context_blocks=context_blocks)
+        context_blocks = self._build_context_blocks(
+            selected_hits,
+            context_max_chars_per_chunk=request.context_max_chars_per_chunk,
+        )
+        llm_request = LLMGenerateRequest(
+            query_text=request.query_text,
+            context_blocks=context_blocks,
+            temperature=request.llm_temperature,
+            prompt_template_name=request.prompt_template_name,
+            prompt_template_version=request.prompt_template_version,
+            instructions=request.prompt_template_system_prompt,
+        )
         fallback_reason: str | None = None
         try:
             llm_output = self._llm_provider.generate(llm_request)
@@ -66,8 +82,40 @@ class AnswerGenerationService:
                 llm_output = MockLLMProvider().generate(llm_request)
                 fallback_reason = str(exc)
             else:
-                raise
-        citations = self._citation_builder.build(selected_hits)
+                return AnswerGenerationResult(
+                    answer=request.refusal_answer_text,
+                    citations=[],
+                    confidence=0.0,
+                    refuse_reason=self.REFUSE_REASON_LLM_PROVIDER_ERROR,
+                    debug=self._build_debug(
+                        request.enable_debug,
+                        {
+                            "selected_hit_count": len(selected_hits),
+                            "provider_name": self._llm_provider.provider_name,
+                            "model_name": self._llm_provider.model_name,
+                            "provider_error": str(exc),
+                        },
+                    ),
+                )
+        citations = self._citation_builder.build(
+            selected_hits,
+            snippet_max_chars=request.citation_snippet_max_chars,
+        )
+        if not self._has_valid_citations(citations):
+            return AnswerGenerationResult(
+                answer=request.refusal_answer_text,
+                citations=[],
+                confidence=0.0,
+                refuse_reason=self.REFUSE_REASON_CITATION_MISSING,
+                debug=self._build_debug(
+                    request.enable_debug,
+                    {
+                        "selected_hit_count": len(selected_hits),
+                        "provider_name": self._llm_provider.provider_name,
+                        "model_name": self._llm_provider.model_name,
+                    },
+                ),
+            )
 
         confidence = self._compute_confidence(selected_hits, llm_output.confidence_hint)
         debug_payload = {
@@ -79,22 +127,41 @@ class AnswerGenerationService:
             debug_payload["provider_fallback_to"] = "mock"
             debug_payload["provider_fallback_reason"] = fallback_reason
 
+        debug_payload = {
+            "selected_hit_count": len(selected_hits),
+            "provider_name": self._llm_provider.provider_name,
+            "model_name": self._llm_provider.model_name,
+            "prompt_template_name": request.prompt_template_name,
+            "prompt_template_version": request.prompt_template_version,
+            "llm_temperature": request.llm_temperature,
+            "context_max_chars_per_chunk": request.context_max_chars_per_chunk,
+            "citation_snippet_max_chars": request.citation_snippet_max_chars,
+        }
+        if fallback_reason is not None:
+            debug_payload["provider_fallback_to"] = "mock"
+            debug_payload["provider_fallback_reason"] = fallback_reason
+
         return AnswerGenerationResult(
             answer=llm_output.answer_text,
             citations=citations,
             confidence=confidence,
             refuse_reason=None,
-            debug=debug_payload,
+            debug=self._build_debug(request.enable_debug, debug_payload),
         )
 
     @staticmethod
-    def _build_context_blocks(hits: list[HybridRetrieveHit]) -> list[str]:
+    def _build_context_blocks(
+        hits: list[HybridRetrieveHit],
+        *,
+        context_max_chars_per_chunk: int,
+    ) -> list[str]:
         blocks: list[str] = []
         for index, hit in enumerate(hits, start=1):
             section = " / ".join(hit.section_path) if hit.section_path else "-"
+            content = hit.content[:context_max_chars_per_chunk]
             blocks.append(
                 f"[C{index}] doc_id={hit.doc_id}; chunk_id={hit.chunk_id}; "
-                f"section={section}; content={hit.content}"
+                f"section={section}; content={content}"
             )
         return blocks
 
@@ -105,3 +172,14 @@ class AnswerGenerationService:
         top_score = max(hit.score_final for hit in hits)
         blended = (top_score * 0.7) + (confidence_hint * 0.3)
         return max(0.0, min(1.0, round(blended, 4)))
+
+    @staticmethod
+    def _has_valid_citations(citations: list) -> bool:  # noqa: ANN401
+        for item in citations:
+            if item.chunk_id and item.doc_id and item.kb_id and item.snippet.strip():
+                return True
+        return False
+
+    @staticmethod
+    def _build_debug(enable_debug: bool, payload: dict) -> dict:  # noqa: ANN401
+        return payload if enable_debug else {}

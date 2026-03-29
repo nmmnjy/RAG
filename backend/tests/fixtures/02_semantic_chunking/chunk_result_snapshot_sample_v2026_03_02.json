@@ -1,0 +1,79 @@
+{
+  "doc_id": "doc_002",
+  "kb_id": "kb_001",
+  "source": "upload",
+  "format": "markdown",
+  "version": "v1",
+  "strategy_name": "structured_window",
+  "strategy_version": "2026.03.02",
+  "params": {
+    "strategy_name": "structured_window",
+    "strategy_version": "2026.03.02",
+    "max_tokens_per_chunk": 220,
+    "overlap_tokens": 30,
+    "min_chunk_tokens": 20,
+    "preserve_table_block": true,
+    "preserve_list_block": false,
+    "preserve_code_block": true,
+    "split_on_section_path_change": true,
+    "sentence_boundary_fallback_split": true
+  },
+  "chunk_count": 3,
+  "chunks": [
+    {
+      "chunk_id": "chk_doc_002_0000",
+      "doc_id": "doc_002",
+      "kb_id": "kb_001",
+      "content": "这是一个用于语义分块的样例文档。它包含普通段落、列表、代码块和表格，目标是验证默认策略在特殊结构上的基础行为。\n\n- 第一条规则\n- 第二条规则",
+      "token_count": 5,
+      "section_path": [
+        "概览"
+      ],
+      "chunk_index": 0,
+      "strategy_name": "structured_window",
+      "strategy_version": "2026.03.02",
+      "source_block_ids": [
+        "blk_p_1",
+        "blk_list_1"
+      ],
+      "special_structure": null,
+      "metadata": {}
+    },
+    {
+      "chunk_id": "chk_doc_002_0001",
+      "doc_id": "doc_002",
+      "kb_id": "kb_001",
+      "content": "```python\nprint('hello chunk')\n```",
+      "token_count": 4,
+      "section_path": [
+        "概览"
+      ],
+      "chunk_index": 1,
+      "strategy_name": "structured_window",
+      "strategy_version": "2026.03.02",
+      "source_block_ids": [
+        "blk_code_1"
+      ],
+      "special_structure": "code",
+      "metadata": {}
+    },
+    {
+      "chunk_id": "chk_doc_002_0002",
+      "doc_id": "doc_002",
+      "kb_id": "kb_001",
+      "content": "字段 | 说明\nchunk_id | 分块唯一标识",
+      "token_count": 6,
+      "section_path": [
+        "概览"
+      ],
+      "chunk_index": 2,
+      "strategy_name": "structured_window",
+      "strategy_version": "2026.03.02",
+      "source_block_ids": [
+        "blk_table_1"
+      ],
+      "special_structure": "table",
+      "metadata": {}
+    }
+  ]
+}

@@ -47,6 +47,7 @@ def test_vector_record_should_keep_minimum_linking_fields() -> None:
         strategy_version=chunk.strategy_version,
         embedding_provider="mock",
         embedding_model="mock-embedding-v1",
+        embedding_model_version="mock-embedding-v1",
         embedding_dim=6,
         embedding=embedding,
         content_hash=VectorRecord.build_content_hash(chunk),
@@ -54,4 +55,3 @@ def test_vector_record_should_keep_minimum_linking_fields() -> None:
     assert record.doc_id == document.doc_id
     assert record.chunk_id == chunk.chunk_id
     assert record.embedding_dim == 6
-

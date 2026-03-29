@@ -24,6 +24,16 @@ def _load_sample_document() -> StructuredDocument:
     return _load_document_from_fixture("structured_document_sample.json")
 
 
+def _load_snapshot(file_name: str) -> dict:
+    fixture_path = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "02_semantic_chunking"
+        / file_name
+    )
+    return json.loads(fixture_path.read_text(encoding="utf-8"))
+
+
 def test_default_chunking_strategy_can_build_chunks() -> None:
     document = _load_sample_document()
     result = chunking_service.build_chunks(document)
@@ -82,3 +92,45 @@ def test_txt_real_like_output_should_split_long_paragraph_into_multiple_chunks()
     assert "Sentence one" in result.chunks[0].content
     for chunk in result.chunks:
         assert chunk.token_count <= 32
+
+
+def test_chunk_contract_required_fields_should_be_stable() -> None:
+    document = _load_sample_document()
+    result = chunking_service.build_chunks(document)
+
+    required_fields = {"chunk_id", "doc_id", "content", "token_count", "section_path"}
+    for chunk in result.chunks:
+        chunk_payload = chunk.model_dump()
+        assert required_fields.issubset(chunk_payload.keys())
+        assert chunk_payload["chunk_id"]
+        assert chunk_payload["doc_id"] == document.doc_id
+        assert chunk_payload["content"]
+        assert isinstance(chunk_payload["token_count"], int)
+        assert isinstance(chunk_payload["section_path"], list)
+
+
+def test_default_strategy_output_should_match_persisted_snapshot() -> None:
+    document = _load_sample_document()
+    result = chunking_service.build_chunks(document)
+    expected = _load_snapshot("chunk_result_snapshot_sample_v2026_03_02.json")
+
+    assert result.model_dump(mode="json") == expected
+
+
+def test_boundary_mix_should_cover_empty_section_multi_heading_and_mixed_structures() -> None:
+    document = _load_document_from_fixture("structured_document_boundary_mix.json")
+    params = ChunkBuildParams(
+        max_tokens_per_chunk=32,
+        overlap_tokens=4,
+        preserve_table_block=True,
+        preserve_list_block=True,
+        preserve_code_block=True,
+    )
+    result = chunking_service.build_chunks(document, params=params)
+
+    assert result.chunk_count > 0
+    assert all(chunk.content.strip() for chunk in result.chunks)
+    assert any(chunk.special_structure == SpecialStructureType.list for chunk in result.chunks)
+    assert any(chunk.special_structure == SpecialStructureType.code for chunk in result.chunks)
+    assert any(chunk.special_structure == SpecialStructureType.table for chunk in result.chunks)
+    assert any(chunk.section_path == ["H1:Guide", "H2:Steps", "H3:Code"] for chunk in result.chunks)

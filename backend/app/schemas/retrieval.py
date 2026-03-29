@@ -17,7 +17,7 @@ class FusionStrategyName(str, Enum):
 class KeywordQueryRequest(BaseModel):
     kb_id: str
     query_text: str
-    top_k: int = Field(default=20, ge=1, le=100)
+    top_k: int = Field(default=20, ge=0, le=100)
     doc_id: str | None = None
 
 
@@ -41,8 +41,8 @@ class HybridFusionConfig(BaseModel):
 
 class HybridRetrieveTuningConfig(BaseModel):
     top_k: int = Field(default=5, ge=1, le=100)
-    vector_top_k: int = Field(default=20, ge=1, le=100)
-    keyword_top_k: int = Field(default=20, ge=1, le=100)
+    vector_top_k: int = Field(default=20, ge=0, le=100)
+    keyword_top_k: int = Field(default=20, ge=0, le=100)
     enable_rerank: bool = False
     fusion_config: HybridFusionConfig = Field(default_factory=HybridFusionConfig)
 
@@ -51,8 +51,8 @@ class HybridRetrieveRequest(BaseModel):
     kb_id: str
     query_text: str
     top_k: int = Field(default=5, ge=1, le=100)
-    vector_top_k: int = Field(default=20, ge=1, le=100)
-    keyword_top_k: int = Field(default=20, ge=1, le=100)
+    vector_top_k: int = Field(default=20, ge=0, le=100)
+    keyword_top_k: int = Field(default=20, ge=0, le=100)
     doc_id: str | None = None
     fusion_config: HybridFusionConfig = Field(default_factory=HybridFusionConfig)
     enable_rerank: bool = False

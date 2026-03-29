@@ -1,0 +1,175 @@
+{
+  "doc_id": "doc_boundary_001",
+  "kb_id": "kb_002",
+  "source": "file://boundary_mix.md",
+  "format": "markdown",
+  "version": "v1",
+  "status": "succeeded",
+  "sections": [
+    {
+      "section_id": "sec_empty",
+      "title": "Empty",
+      "heading_level": 1,
+      "section_path": [
+        "H1:Empty"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": []
+    },
+    {
+      "section_id": "sec_h1",
+      "title": "Guide",
+      "heading_level": 1,
+      "section_path": [
+        "H1:Guide"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "blk_h1_intro",
+          "block_type": "paragraph",
+          "content": "This is the guide introduction paragraph.",
+          "section_path": [
+            "H1:Guide"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    },
+    {
+      "section_id": "sec_h2",
+      "title": "Steps",
+      "heading_level": 2,
+      "section_path": [
+        "H1:Guide",
+        "H2:Steps"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "blk_list_1",
+          "block_type": "paragraph",
+          "content": "- Step one install dependencies",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_list_2",
+          "block_type": "paragraph",
+          "content": "- Step two run the service",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_long_para",
+          "block_type": "paragraph",
+          "content": "Sentence one for boundary test. Sentence two keeps the section stable and should be in one or more split chunks. Sentence three continues with additional context to trigger long paragraph split. Sentence four makes sure the token window limit is actually reached in this fixture.",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    },
+    {
+      "section_id": "sec_h3",
+      "title": "Code",
+      "heading_level": 3,
+      "section_path": [
+        "H1:Guide",
+        "H2:Steps",
+        "H3:Code"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "blk_code_1",
+          "block_type": "paragraph",
+          "content": "```bash",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps",
+            "H3:Code"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_code_2",
+          "block_type": "paragraph",
+          "content": "npm run dev",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps",
+            "H3:Code"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "blk_code_3",
+          "block_type": "paragraph",
+          "content": "```",
+          "section_path": [
+            "H1:Guide",
+            "H2:Steps",
+            "H3:Code"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    },
+    {
+      "section_id": "sec_table",
+      "title": "Data",
+      "heading_level": 2,
+      "section_path": [
+        "H1:Guide",
+        "H2:Data"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "blk_table_1",
+          "block_type": "table",
+          "content": "",
+          "section_path": [
+            "H1:Guide",
+            "H2:Data"
+          ],
+          "page_no": null,
+          "table_rows": [
+            [
+              "field",
+              "desc"
+            ],
+            [
+              "chunk_id",
+              "stable id"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "note": "boundary fixture for third-round convergence"
+  }
+}

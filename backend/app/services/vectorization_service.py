@@ -35,6 +35,7 @@ class VectorizationService:
                     strategy_version=chunk.strategy_version,
                     embedding_provider=self._provider.provider_name,
                     embedding_model=self._provider.model_name,
+                    embedding_model_version=self._provider.model_version,
                     embedding_dim=self._provider.embedding_dim,
                     embedding=embedding,
                     content_hash=VectorRecord.build_content_hash(chunk),
@@ -48,4 +49,3 @@ class VectorizationService:
             )
 
         return records
-

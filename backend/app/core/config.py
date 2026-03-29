@@ -9,9 +9,10 @@ class Settings:
     log_level: str = "INFO"
     service_name: str = "backend-document-parser"
     parse_max_retry: int = 3
-    doc_parse_provider: str = "placeholder"
+    doc_parse_provider: str = "hybrid"
     doc_parse_real_formats: set[str] = field(default_factory=lambda: {"markdown", "txt"})
     doc_parse_enable_fallback: bool = True
+    doc_parse_upload_dir: str = "backend/data/uploads"
     llm_provider: str = "mock"
     llm_model: str = "mock-llm"
     llm_api_key: str = ""
@@ -27,11 +28,13 @@ class Settings:
     embedding_request_timeout_ms: int = 15000
     embedding_provider_enable_real: bool = False
     embedding_provider_fallback_to_mock: bool = True
+    embedding_max_retry: int = 2
     vector_repository: str = "in_memory"
     vector_db_url: str = ""
     vector_table_name: str = "chunks"
     vector_repository_enable_real: bool = False
     vector_repository_fallback_to_in_memory: bool = True
+    vector_repository_max_retry: int = 2
 
 
 def _parse_bool(value: str, default: bool) -> bool:
@@ -49,9 +52,10 @@ def load_settings() -> Settings:
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         service_name=os.getenv("APP_SERVICE_NAME", "backend-document-parser"),
         parse_max_retry=int(os.getenv("DOC_PARSE_MAX_RETRY", "3")),
-        doc_parse_provider=os.getenv("DOC_PARSE_PROVIDER", "placeholder"),
+        doc_parse_provider=os.getenv("DOC_PARSE_PROVIDER", "hybrid"),
         doc_parse_real_formats=real_formats,
         doc_parse_enable_fallback=_parse_bool(os.getenv("DOC_PARSE_ENABLE_FALLBACK", "true"), default=True),
+        doc_parse_upload_dir=os.getenv("DOC_PARSE_UPLOAD_DIR", "backend/data/uploads"),
         llm_provider=os.getenv("LLM_PROVIDER", "mock"),
         llm_model=os.getenv("LLM_MODEL", "mock-llm"),
         llm_api_key=os.getenv("LLM_API_KEY", ""),
@@ -71,6 +75,7 @@ def load_settings() -> Settings:
         embedding_provider_fallback_to_mock=_parse_bool(
             os.getenv("EMBEDDING_PROVIDER_FALLBACK_TO_MOCK", "true"), default=True
         ),
+        embedding_max_retry=max(int(os.getenv("EMBEDDING_MAX_RETRY", "2")), 1),
         vector_repository=os.getenv("VECTOR_REPOSITORY", "in_memory"),
         vector_db_url=os.getenv("VECTOR_DB_URL", ""),
         vector_table_name=os.getenv("VECTOR_TABLE_NAME", "chunks"),
@@ -78,6 +83,7 @@ def load_settings() -> Settings:
         vector_repository_fallback_to_in_memory=_parse_bool(
             os.getenv("VECTOR_REPOSITORY_FALLBACK_TO_IN_MEMORY", "true"), default=True
         ),
+        vector_repository_max_retry=max(int(os.getenv("VECTOR_REPOSITORY_MAX_RETRY", "2")), 1),
     )
 
 

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 from uuid import uuid4
 
+from app.core.config import Settings, settings
 from app.schemas.answer_generation import AnswerGenerationRequest
 from app.schemas.evaluation import (
     EvaluationCheckResult,
@@ -16,6 +18,7 @@ from app.schemas.evaluation import (
     OfflineEvaluationDatasetInput,
     OfflineEvaluationReport,
     OfflineEvaluationSummary,
+    RuntimeEvalPolicy,
     ReleaseGateResult,
     ReleaseGateRule,
 )
@@ -23,37 +26,54 @@ from app.schemas.retrieval import HybridRetrieveRequest
 from app.schemas.vectorization import VectorWriteMode, VectorWriteRequest, VectorizationInput
 from app.services.answer_generation_service import AnswerGenerationService
 from app.services.chunking_service import chunking_service
-from app.services.embedding_provider import MockEmbeddingProvider
+from app.services.embedding_provider import EmbeddingProvider, MockEmbeddingProvider
 from app.services.hybrid_retrieval_service import HybridRetrievalService
 from app.services.keyword_retriever import InMemoryKeywordRetriever
-from app.services.vector_access_factory import build_vector_access_runtime
+from app.services.llm_provider import (
+    LLMProvider,
+    LLMProviderError,
+    MockLLMProvider,
+    build_llm_provider,
+)
+from app.services.vector_access_factory import VectorAccessRuntime, build_vector_access_runtime
 from app.services.vector_store_service import VectorStoreService
 from app.services.vectorization_service import VectorizationService
 
 
 class OfflineEvaluator:
-    def __init__(self, embedding_dim: int = 12) -> None:
-        runtime = build_vector_access_runtime()
-        if runtime.embedding_provider.provider_name == "mock":
-            self._embedding_provider = MockEmbeddingProvider(
-                model_name=runtime.embedding_provider.model_name,
-                embedding_dim=embedding_dim,
-            )
-        else:
-            self._embedding_provider = runtime.embedding_provider
+    def __init__(
+        self,
+        embedding_dim: int = 12,
+        runtime_settings: Settings | None = None,
+        llm_provider: LLMProvider | None = None,
+        allow_llm_fallback_to_mock: bool | None = None,
+        vector_runtime_builder: Callable[[Settings], VectorAccessRuntime] | None = None,
+    ) -> None:
+        self._embedding_dim = embedding_dim
+        self._runtime_settings = runtime_settings or settings
+        self._llm_provider = llm_provider
+        self._allow_llm_fallback_to_mock = allow_llm_fallback_to_mock
+        self._vector_runtime_builder = vector_runtime_builder or build_vector_access_runtime
 
     def run_dataset(
         self,
         dataset: OfflineEvaluationDatasetInput,
         gate_rules: list[ReleaseGateRule] | None = None,
+        pass_rate_min: float = 0.9,
     ) -> OfflineEvaluationReport:
+        runtime_policy = dataset.runtime_policy
         case_reports: list[OfflineEvaluationCaseReport] = []
         for case_item in dataset.cases:
-            case_reports.append(self._evaluate_case(case_item))
+            case_reports.append(self._evaluate_case(case_item, runtime_policy))
 
         summary = self._build_summary(case_reports)
-        resolved_rules = gate_rules or self._build_default_gate_rules()
-        gate_results = self._evaluate_gate_rules(summary=summary, case_reports=case_reports, rules=resolved_rules)
+        resolved_rules = gate_rules or self._build_default_gate_rules(runtime_policy, pass_rate_min)
+        gate_results = self._evaluate_gate_rules(
+            summary=summary,
+            case_reports=case_reports,
+            rules=resolved_rules,
+            runtime_policy=runtime_policy,
+        )
 
         return OfflineEvaluationReport(
             report_id=f"eval_{uuid4().hex[:12]}",
@@ -71,13 +91,19 @@ class OfflineEvaluator:
         payload = dataset_path.read_text(encoding="utf-8")
         return OfflineEvaluationDatasetInput.model_validate_json(payload)
 
-    def _evaluate_case(self, case_item: OfflineEvaluationCaseInput) -> OfflineEvaluationCaseReport:
-        output = self._run_pipeline(case_item)
+    def _evaluate_case(
+        self,
+        case_item: OfflineEvaluationCaseInput,
+        runtime_policy: RuntimeEvalPolicy,
+    ) -> OfflineEvaluationCaseReport:
+        output = self._run_pipeline(case_item, runtime_policy)
 
         parse_checks = self._check_parse_structured(case_item)
         chunk_checks = self._check_chunk_quality(case_item, output)
         retrieval_checks = self._check_retrieval_quality(case_item, output)
         answer_checks = self._check_answer_quality(case_item, output)
+        provider_checks = self._check_provider_runtime(output.provider_runtime)
+        answer_checks_all = [*answer_checks, *provider_checks]
 
         dimensions = [
             EvaluationDimensionResult(
@@ -97,11 +123,16 @@ class OfflineEvaluator:
             ),
             EvaluationDimensionResult(
                 dimension_name=EvaluationDimension.answer_quality,
-                passed=all(item.passed for item in answer_checks),
-                checks=answer_checks,
+                passed=all(item.passed for item in answer_checks_all),
+                checks=answer_checks_all,
             ),
         ]
-        all_checks = [*parse_checks, *chunk_checks, *retrieval_checks, *answer_checks]
+        all_checks = [
+            *parse_checks,
+            *chunk_checks,
+            *retrieval_checks,
+            *answer_checks_all,
+        ]
 
         return OfflineEvaluationCaseReport(
             case_id=case_item.case_id,
@@ -118,7 +149,7 @@ class OfflineEvaluator:
                 "is_must_hit_evidence_case": case_item.assertions.require_evidence_hit,
                 "answerable_chain_passed": all(
                     item.passed
-                    for item in answer_checks
+                    for item in answer_checks_all
                     if item.check_name
                     in {
                         "answer_non_empty_for_answerable",
@@ -128,15 +159,21 @@ class OfflineEvaluator:
                         "answer_evidence_hit_for_answerable",
                     }
                 ),
+                "provider_runtime": output.provider_runtime,
             },
         )
 
-    def _run_pipeline(self, case_item: OfflineEvaluationCaseInput) -> OfflineEvaluationCaseOutput:
+    def _run_pipeline(
+        self,
+        case_item: OfflineEvaluationCaseInput,
+        runtime_policy: RuntimeEvalPolicy,
+    ) -> OfflineEvaluationCaseOutput:
         chunk_build_result = chunking_service.build_chunks(case_item.structured_document)
-        runtime = build_vector_access_runtime()
+        runtime = self._vector_runtime_builder(self._runtime_settings)
+        embedding_provider = self._resolve_embedding_provider(runtime.embedding_provider)
         vector_store_service = VectorStoreService(
             repository=runtime.vector_repository,
-            vectorization_service=VectorizationService(provider=self._embedding_provider),
+            vectorization_service=VectorizationService(provider=embedding_provider),
         )
         vector_store_service.write_vectors(
             VectorWriteRequest(
@@ -169,7 +206,7 @@ class OfflineEvaluator:
         retrieval_service = HybridRetrievalService(
             vector_store_service=vector_store_service,
             keyword_retriever=keyword_retriever,
-            embedding_provider=self._embedding_provider,
+            embedding_provider=embedding_provider,
         )
         retrieval_result = retrieval_service.retrieve(
             HybridRetrieveRequest(
@@ -187,7 +224,12 @@ class OfflineEvaluator:
             )
         )
 
-        answer_result = AnswerGenerationService().generate(
+        llm_runtime = self._build_llm_runtime()
+        answer_service = AnswerGenerationService(
+            llm_provider=llm_runtime,
+            allow_provider_fallback_to_mock=False,
+        )
+        answer_result = answer_service.generate(
             AnswerGenerationRequest(
                 kb_id=case_item.structured_document.kb_id,
                 query_text=case_item.query_text,
@@ -196,13 +238,85 @@ class OfflineEvaluator:
                 min_score_threshold=case_item.answer_config.min_score_threshold,
                 min_evidence_chunks=case_item.answer_config.min_evidence_chunks,
                 refusal_answer_text=case_item.answer_config.refusal_answer_text,
+                enable_debug=True,
             )
+        )
+        provider_runtime = self._build_provider_runtime(
+            embedding_provider=embedding_provider,
+            llm_runtime=llm_runtime,
+            runtime_policy=runtime_policy,
         )
         return OfflineEvaluationCaseOutput(
             chunk_build_result=chunk_build_result,
             retrieval_result=retrieval_result,
             answer_result=answer_result,
+            provider_runtime=provider_runtime,
         )
+
+    def _resolve_embedding_provider(self, provider: EmbeddingProvider) -> EmbeddingProvider:
+        if provider.provider_name == "mock":
+            return MockEmbeddingProvider(
+                model_name=provider.model_name,
+                embedding_dim=self._embedding_dim,
+            )
+        return provider
+
+    def _build_provider_runtime(
+        self,
+        *,
+        embedding_provider: EmbeddingProvider,
+        llm_runtime: "_TrackedLLMProvider",
+        runtime_policy: RuntimeEvalPolicy,
+    ) -> dict:
+        settings_ref = self._runtime_settings
+        embedding_real_mode_declared = (
+            settings_ref.embedding_provider == "openai_compatible"
+            and settings_ref.embedding_provider_enable_real
+        )
+        llm_real_mode_declared = (
+            settings_ref.llm_provider == "openai_compatible"
+            and settings_ref.llm_provider_enable_real
+        )
+        effective_real_mode_declared = (
+            runtime_policy.declared_real_mode
+            if runtime_policy.declared_real_mode is not None
+            else (embedding_real_mode_declared or llm_real_mode_declared)
+        )
+
+        embedding_active_provider = embedding_provider.provider_name
+        embedding_fallback_occurred = (
+            embedding_real_mode_declared
+            and settings_ref.embedding_provider == "openai_compatible"
+            and embedding_active_provider != "openai_compatible"
+        )
+
+        llm_active_provider = llm_runtime.active_provider_name
+        llm_fallback_to = llm_runtime.fallback_to
+        llm_fallback_occurred = llm_runtime.fallback_occurred
+
+        any_fallback_occurred = embedding_fallback_occurred or llm_fallback_occurred
+        fallback_visible = not any_fallback_occurred or bool(llm_fallback_to or embedding_fallback_occurred)
+        return {
+            "effective_real_mode_declared": effective_real_mode_declared,
+            "embedding": {
+                "declared_provider": settings_ref.embedding_provider,
+                "active_provider": embedding_active_provider,
+                "model_name": embedding_provider.model_name,
+                "real_mode_declared": embedding_real_mode_declared,
+                "fallback_occurred": embedding_fallback_occurred,
+                "fallback_to": ("mock" if embedding_fallback_occurred else None),
+            },
+            "llm": {
+                "declared_provider": settings_ref.llm_provider,
+                "active_provider": llm_active_provider,
+                "model_name": llm_runtime.active_model_name,
+                "real_mode_declared": llm_real_mode_declared,
+                "fallback_occurred": llm_fallback_occurred,
+                "fallback_to": llm_fallback_to,
+            },
+            "any_fallback_occurred": any_fallback_occurred,
+            "fallback_visible": fallback_visible,
+        }
 
     def _check_parse_structured(self, case_item: OfflineEvaluationCaseInput) -> list[EvaluationCheckResult]:
         parse_result = case_item.structured_document
@@ -445,6 +559,53 @@ class OfflineEvaluator:
             ),
         ]
 
+    def _check_provider_runtime(self, provider_runtime: dict) -> list[EvaluationCheckResult]:
+        effective_real_mode_declared = bool(provider_runtime.get("effective_real_mode_declared"))
+        any_fallback_occurred = bool(provider_runtime.get("any_fallback_occurred"))
+        fallback_visible = bool(provider_runtime.get("fallback_visible"))
+        embedding_runtime = provider_runtime.get("embedding", {})
+        llm_runtime = provider_runtime.get("llm", {})
+        provider_summary = (
+            f"embedding={embedding_runtime.get('active_provider')};"
+            f"llm={llm_runtime.get('active_provider')}"
+        )
+        return [
+            self._build_check(
+                check_name="provider_runtime_info_visible",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=bool(embedding_runtime) and bool(llm_runtime),
+                metric_value=provider_summary,
+                assertion_result="报告必须输出 embedding/llm provider 运行信息",
+                failure_reason=(
+                    None
+                    if bool(embedding_runtime) and bool(llm_runtime)
+                    else "provider 运行信息缺失，无法判定 real/fallback 路径"
+                ),
+            ),
+            self._build_check(
+                check_name="provider_fallback_detected_in_real_mode",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=True,
+                metric_value=(
+                    f"real_mode={effective_real_mode_declared};"
+                    f"fallback={any_fallback_occurred}"
+                ),
+                assertion_result="real 模式是否发生 fallback（可观测检查）",
+            ),
+            self._build_check(
+                check_name="provider_fallback_visibility_when_occurred",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=(not any_fallback_occurred) or fallback_visible,
+                metric_value=fallback_visible,
+                assertion_result="fallback 发生时必须在报告中可见",
+                failure_reason=(
+                    None
+                    if (not any_fallback_occurred) or fallback_visible
+                    else "检测到 fallback，但报告中无可见标记"
+                ),
+            ),
+        ]
+
     @staticmethod
     def _build_check(
         *,
@@ -493,13 +654,16 @@ class OfflineEvaluator:
         )
 
     @staticmethod
-    def _build_default_gate_rules() -> list[ReleaseGateRule]:
+    def _build_default_gate_rules(
+        runtime_policy: RuntimeEvalPolicy,
+        pass_rate_min: float,
+    ) -> list[ReleaseGateRule]:
         return [
             ReleaseGateRule(
-                rule_name="gate_pass_rate_min_0_90",
+                rule_name="gate_pass_rate_min",
                 rule_type=GateRuleType.pass_rate_min,
-                threshold_value=0.9,
-                description="总检查通过率至少 0.90",
+                threshold_value=pass_rate_min,
+                description=f"总检查通过率至少 {pass_rate_min:.2f}",
             ),
             ReleaseGateRule(
                 rule_name="gate_parse_dimension_must_pass",
@@ -525,6 +689,11 @@ class OfflineEvaluator:
                 target_check_name="answer_evidence_hit_for_answerable",
                 description="可答样本必须命中证据文本（answer 或 citation.snippet）",
             ),
+            ReleaseGateRule(
+                rule_name="gate_real_mode_forbid_fallback",
+                rule_type=GateRuleType.real_mode_no_fallback,
+                description="real 模式禁止 fallback（可配置）",
+            ),
         ]
 
     def _evaluate_gate_rules(
@@ -533,6 +702,7 @@ class OfflineEvaluator:
         summary: OfflineEvaluationSummary,
         case_reports: list[OfflineEvaluationCaseReport],
         rules: list[ReleaseGateRule],
+        runtime_policy: RuntimeEvalPolicy,
     ) -> list[ReleaseGateResult]:
         results: list[ReleaseGateResult] = []
         for rule_item in rules:
@@ -593,4 +763,117 @@ class OfflineEvaluator:
                         ),
                     )
                 )
+                continue
+
+            if rule_item.rule_type == GateRuleType.real_mode_no_fallback:
+                if not runtime_policy.forbid_fallback_when_real_mode:
+                    results.append(
+                        ReleaseGateResult(
+                            rule_name=rule_item.rule_name,
+                            passed=True,
+                            metric_value="skipped_not_enforced",
+                            assertion_result="runtime_policy.forbid_fallback_when_real_mode=false",
+                        )
+                    )
+                    continue
+                effective_real_mode_declared = (
+                    runtime_policy.declared_real_mode
+                    if runtime_policy.declared_real_mode is not None
+                    else any(
+                        bool(case_item.output_summary.get("provider_runtime", {}).get("effective_real_mode_declared"))
+                        for case_item in case_reports
+                    )
+                )
+                if not effective_real_mode_declared:
+                    results.append(
+                        ReleaseGateResult(
+                            rule_name=rule_item.rule_name,
+                            passed=True,
+                            metric_value="skipped_non_real_mode",
+                            assertion_result="仅 real 模式启用",
+                        )
+                    )
+                    continue
+                fallback_case_count = sum(
+                    1
+                    for case_item in case_reports
+                    if bool(case_item.output_summary.get("provider_runtime", {}).get("any_fallback_occurred"))
+                )
+                passed = fallback_case_count == 0
+                results.append(
+                    ReleaseGateResult(
+                        rule_name=rule_item.rule_name,
+                        passed=passed,
+                        metric_value=fallback_case_count,
+                        assertion_result="fallback_case_count == 0",
+                        failure_reason=(
+                            None
+                            if passed
+                            else "real 模式检测到 fallback，按门禁策略阻断发布"
+                        ),
+                    )
+                )
         return results
+
+    def _build_llm_runtime(self) -> "_TrackedLLMProvider":
+        primary_provider = self._llm_provider or build_llm_provider()
+        allow_fallback = (
+            self._allow_llm_fallback_to_mock
+            if self._allow_llm_fallback_to_mock is not None
+            else self._runtime_settings.llm_provider_fallback_to_mock
+        )
+        fallback_provider = MockLLMProvider(model_name=self._runtime_settings.llm_model)
+        return _TrackedLLMProvider(
+            primary=primary_provider,
+            fallback=fallback_provider,
+            allow_fallback=allow_fallback,
+        )
+
+
+class _TrackedLLMProvider(LLMProvider):
+    def __init__(self, primary: LLMProvider, fallback: LLMProvider, allow_fallback: bool) -> None:
+        self._primary = primary
+        self._fallback = fallback
+        self._allow_fallback = allow_fallback
+        self._active_provider = primary
+        self._fallback_occurred = False
+        self._fallback_to: str | None = None
+
+    @property
+    def provider_name(self) -> str:
+        return self._active_provider.provider_name
+
+    @property
+    def model_name(self) -> str:
+        return self._active_provider.model_name
+
+    @property
+    def active_provider_name(self) -> str:
+        return self._active_provider.provider_name
+
+    @property
+    def active_model_name(self) -> str:
+        return self._active_provider.model_name
+
+    @property
+    def fallback_occurred(self) -> bool:
+        return self._fallback_occurred
+
+    @property
+    def fallback_to(self) -> str | None:
+        return self._fallback_to
+
+    def generate(self, request) -> object:
+        self._active_provider = self._primary
+        self._fallback_occurred = False
+        self._fallback_to = None
+        try:
+            return self._primary.generate(request)
+        except LLMProviderError:
+            if not self._allow_fallback or self._primary.provider_name == "mock":
+                raise
+            result = self._fallback.generate(request)
+            self._active_provider = self._fallback
+            self._fallback_occurred = True
+            self._fallback_to = self._fallback.provider_name
+            return result

@@ -43,13 +43,19 @@ try {
   if ($Action -eq "serve") {
     Write-Host "[backend] uvicorn app.main:app --reload --app-dir . --host 0.0.0.0 --port 8000"
     & $pythonExe -m uvicorn app.main:app --reload --app-dir . --host 0.0.0.0 --port 8000
-    exit $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) {
+      throw "backend serve failed."
+    }
+    return
   }
 
   if ($TestScope -eq "all") {
     Write-Host "[backend] python -m pytest"
     & $pythonExe -m pytest
-    exit $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) {
+      throw "backend tests failed."
+    }
+    return
   }
 
   $keyTests = @(
@@ -62,7 +68,9 @@ try {
   }
   Write-Host "[backend] python -m pytest $($keyTests -join ' ')"
   & $pythonExe -m pytest @keyTests
-  exit $LASTEXITCODE
+  if ($LASTEXITCODE -ne 0) {
+    throw "backend key tests failed."
+  }
 } finally {
   Pop-Location
 }

@@ -36,6 +36,7 @@ class VectorRecord(BaseModel):
     strategy_version: str
     embedding_provider: str
     embedding_model: str
+    embedding_model_version: str
     embedding_dim: int
     embedding: list[float] = Field(default_factory=list)
     content_hash: str
@@ -80,4 +81,3 @@ class VectorQueryHit(BaseModel):
     score_vector: float
     citation: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-

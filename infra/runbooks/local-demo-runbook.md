@@ -81,3 +81,17 @@ python -m pip install -r requirements.txt
 3. 后端关键测试通过
 4. 离线评测产出报告文件
 5. 报告中 `release_blocked` 可读且 `gate_results` 有值
+
+## 6. Real-Mode 最小流程（可复制）
+1. real 预检：
+```powershell
+.\infra\scripts\preflight.ps1 -Environment test -Profile real -RealMode
+```
+2. real 一键验收：
+```powershell
+.\infra\scripts\local-real-acceptance.ps1 -Environment test -EvalDataset qa_demo_v1 -ForbidFallbackWhenRealMode
+```
+3. real 单步评测（可选）：
+```powershell
+.\infra\scripts\local-evaluation.ps1 -Dataset qa_demo_v1 -RealMode -ForbidFallbackWhenRealMode
+```

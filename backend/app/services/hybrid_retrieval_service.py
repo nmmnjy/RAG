@@ -31,22 +31,26 @@ class HybridRetrievalService:
     def retrieve(self, request: HybridRetrieveRequest) -> HybridRetrieveResult:
         tuning_config = request.get_effective_tuning_config()
         query_embedding = self._embedding_provider.embed_texts([request.query_text])[0]
-        vector_hits = self._vector_store_service.query_similar(
-            VectorQueryRequest(
-                kb_id=request.kb_id,
-                doc_id=request.doc_id,
-                query_embedding=query_embedding,
-                top_k=tuning_config.vector_top_k,
+        vector_hits = []
+        if tuning_config.vector_top_k > 0:
+            vector_hits = self._vector_store_service.query_similar(
+                VectorQueryRequest(
+                    kb_id=request.kb_id,
+                    doc_id=request.doc_id,
+                    query_embedding=query_embedding,
+                    top_k=tuning_config.vector_top_k,
+                )
             )
-        )
-        keyword_hits = self._keyword_retriever.search(
-            KeywordQueryRequest(
-                kb_id=request.kb_id,
-                doc_id=request.doc_id,
-                query_text=request.query_text,
-                top_k=tuning_config.keyword_top_k,
+        keyword_hits = []
+        if tuning_config.keyword_top_k > 0:
+            keyword_hits = self._keyword_retriever.search(
+                KeywordQueryRequest(
+                    kb_id=request.kb_id,
+                    doc_id=request.doc_id,
+                    query_text=request.query_text,
+                    top_k=tuning_config.keyword_top_k,
+                )
             )
-        )
 
         vector_by_chunk_id = {item.chunk_id: item for item in vector_hits}
         keyword_by_chunk_id = {item.chunk_id: item for item in keyword_hits}
@@ -63,13 +67,22 @@ class HybridRetrievalService:
             keyword_by_chunk_id=keyword_by_chunk_id,
             fused_scores=fused_scores,
         )
-        merged_hits.sort(key=lambda item: item.score_final, reverse=True)
+        merged_hits.sort(key=lambda item: (-item.score_final, item.chunk_id))
 
+        rerank_status = "disabled"
+        rerank_error: str | None = None
         if tuning_config.enable_rerank:
-            reranked = self._reranker.rerank(
-                RerankRequest(query_text=request.query_text, hits=merged_hits, top_k=tuning_config.top_k)
-            )
-            final_hits = reranked[: tuning_config.top_k]
+            try:
+                reranked = self._reranker.rerank(
+                    RerankRequest(query_text=request.query_text, hits=merged_hits, top_k=tuning_config.top_k)
+                )
+                final_hits = reranked[: tuning_config.top_k]
+                rerank_status = "applied"
+            except Exception as exc:  # noqa: BLE001
+                # Keep retrieval stable even when reranker is unavailable.
+                final_hits = merged_hits[: tuning_config.top_k]
+                rerank_status = "fallback"
+                rerank_error = str(exc)
         else:
             final_hits = merged_hits[: tuning_config.top_k]
 
@@ -85,6 +98,8 @@ class HybridRetrievalService:
                 "fusion_strategy": tuning_config.fusion_config.strategy_name.value,
                 "enable_rerank": tuning_config.enable_rerank,
                 "reranker_name": self._reranker.reranker_name,
+                "rerank_status": rerank_status,
+                "rerank_error": rerank_error,
             },
         )
 

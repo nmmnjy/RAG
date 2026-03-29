@@ -1,15 +1,15 @@
 {
-  "report_id": "eval_e7dc24b5f14b",
+  "report_id": "eval_4cba7f1f8c19",
   "dataset_id": "sample_v1",
   "dataset_version": "2026.03.28-r2",
-  "generated_at": "2026-03-28T16:16:02.245418Z",
+  "generated_at": "2026-03-29T04:42:16.526305Z",
   "summary": {
     "case_count": 2,
     "case_passed_count": 2,
     "answerable_case_count": 1,
     "answerable_case_passed_count": 1,
-    "check_count": 30,
-    "check_passed_count": 30,
+    "check_count": 36,
+    "check_passed_count": 36,
     "check_failed_count": 0,
     "pass_rate": 1.0
   },
@@ -47,6 +47,13 @@
       "passed": true,
       "metric_value": 0,
       "assertion_result": "failed_check_count == 0",
+      "failure_reason": null
+    },
+    {
+      "rule_name": "gate_real_mode_forbid_fallback",
+      "passed": true,
+      "metric_value": "skipped_not_enforced",
+      "assertion_result": "runtime_policy.forbid_fallback_when_real_mode=false",
       "failure_reason": null
     }
   ],
@@ -198,6 +205,30 @@
               "metric_value": "skipped",
               "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
               "failure_reason": null
+            },
+            {
+              "check_name": "provider_runtime_info_visible",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": "embedding=mock;llm=mock",
+              "assertion_result": "报告必须输出 embedding/llm provider 运行信息",
+              "failure_reason": null
+            },
+            {
+              "check_name": "provider_fallback_detected_in_real_mode",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": "real_mode=False;fallback=False",
+              "assertion_result": "real 模式是否发生 fallback（可观测检查）",
+              "failure_reason": null
+            },
+            {
+              "check_name": "provider_fallback_visibility_when_occurred",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": 1.0,
+              "assertion_result": "fallback 发生时必须在报告中可见",
+              "failure_reason": null
             }
           ]
         }
@@ -322,6 +353,30 @@
           "metric_value": "skipped",
           "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
           "failure_reason": null
+        },
+        {
+          "check_name": "provider_runtime_info_visible",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": "embedding=mock;llm=mock",
+          "assertion_result": "报告必须输出 embedding/llm provider 运行信息",
+          "failure_reason": null
+        },
+        {
+          "check_name": "provider_fallback_detected_in_real_mode",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": "real_mode=False;fallback=False",
+          "assertion_result": "real 模式是否发生 fallback（可观测检查）",
+          "failure_reason": null
+        },
+        {
+          "check_name": "provider_fallback_visibility_when_occurred",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": 1.0,
+          "assertion_result": "fallback 发生时必须在报告中可见",
+          "failure_reason": null
         }
       ],
       "output_summary": {
@@ -331,7 +386,28 @@
         "answer_citation_count": 3,
         "is_expected_answerable": true,
         "is_must_hit_evidence_case": false,
-        "answerable_chain_passed": true
+        "answerable_chain_passed": true,
+        "provider_runtime": {
+          "effective_real_mode_declared": false,
+          "embedding": {
+            "declared_provider": "mock",
+            "active_provider": "mock",
+            "model_name": "mock-embedding",
+            "real_mode_declared": false,
+            "fallback_occurred": false,
+            "fallback_to": null
+          },
+          "llm": {
+            "declared_provider": "mock",
+            "active_provider": "mock",
+            "model_name": "mock-llm",
+            "real_mode_declared": false,
+            "fallback_occurred": false,
+            "fallback_to": null
+          },
+          "any_fallback_occurred": false,
+          "fallback_visible": true
+        }
       }
     },
     {
@@ -480,6 +556,30 @@
               "metric_value": "answer",
               "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
               "failure_reason": null
+            },
+            {
+              "check_name": "provider_runtime_info_visible",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": "embedding=mock;llm=mock",
+              "assertion_result": "报告必须输出 embedding/llm provider 运行信息",
+              "failure_reason": null
+            },
+            {
+              "check_name": "provider_fallback_detected_in_real_mode",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": "real_mode=False;fallback=False",
+              "assertion_result": "real 模式是否发生 fallback（可观测检查）",
+              "failure_reason": null
+            },
+            {
+              "check_name": "provider_fallback_visibility_when_occurred",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": 1.0,
+              "assertion_result": "fallback 发生时必须在报告中可见",
+              "failure_reason": null
             }
           ]
         }
@@ -604,6 +704,30 @@
           "metric_value": "answer",
           "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
           "failure_reason": null
+        },
+        {
+          "check_name": "provider_runtime_info_visible",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": "embedding=mock;llm=mock",
+          "assertion_result": "报告必须输出 embedding/llm provider 运行信息",
+          "failure_reason": null
+        },
+        {
+          "check_name": "provider_fallback_detected_in_real_mode",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": "real_mode=False;fallback=False",
+          "assertion_result": "real 模式是否发生 fallback（可观测检查）",
+          "failure_reason": null
+        },
+        {
+          "check_name": "provider_fallback_visibility_when_occurred",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": 1.0,
+          "assertion_result": "fallback 发生时必须在报告中可见",
+          "failure_reason": null
         }
       ],
       "output_summary": {
@@ -613,7 +737,28 @@
         "answer_citation_count": 1,
         "is_expected_answerable": true,
         "is_must_hit_evidence_case": true,
-        "answerable_chain_passed": true
+        "answerable_chain_passed": true,
+        "provider_runtime": {
+          "effective_real_mode_declared": false,
+          "embedding": {
+            "declared_provider": "mock",
+            "active_provider": "mock",
+            "model_name": "mock-embedding",
+            "real_mode_declared": false,
+            "fallback_occurred": false,
+            "fallback_to": null
+          },
+          "llm": {
+            "declared_provider": "mock",
+            "active_provider": "mock",
+            "model_name": "mock-llm",
+            "real_mode_declared": false,
+            "fallback_occurred": false,
+            "fallback_to": null
+          },
+          "any_fallback_occurred": false,
+          "fallback_visible": true
+        }
       }
     }
   ]

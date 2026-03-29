@@ -26,6 +26,15 @@ class AnswerGenerationRequest(BaseModel):
     query_text: str
     retrieval_result: HybridRetrieveResult
     max_context_chunks: int = Field(default=5, ge=1, le=20)
+    context_max_chars_per_chunk: int = Field(default=1200, ge=100, le=10000)
+    citation_snippet_max_chars: int = Field(default=200, ge=50, le=2000)
+    llm_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    prompt_template_name: str = "qa_grounded_answer"
+    prompt_template_version: str = "v1.0.0"
+    prompt_template_system_prompt: str = (
+        "请严格依据提供的上下文回答。若证据不足，请明确说明无法回答，不要编造。"
+    )
+    enable_debug: bool = False
     min_score_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
     min_evidence_chunks: int = Field(default=1, ge=1, le=20)
     refusal_answer_text: str = "抱歉，我当前无法基于现有检索证据可靠回答这个问题。"
@@ -42,6 +51,9 @@ class AnswerGenerationResult(BaseModel):
 class LLMGenerateRequest(BaseModel):
     query_text: str
     context_blocks: list[str] = Field(default_factory=list)
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    prompt_template_name: str = "qa_grounded_answer"
+    prompt_template_version: str = "v1.0.0"
     instructions: str = (
         "请严格依据提供的上下文回答。若证据不足，请明确说明无法回答，不要编造。"
     )

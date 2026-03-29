@@ -17,16 +17,16 @@ class TxtFileParserAdapter(ParserAdapter):
         file_path = parse_input.file_path
         if not file_path:
             raise AppError(
-                code=ERROR_CODE.DOC_PARSE_FAILED,
+                code=ERROR_CODE.DOC_SOURCE_INVALID,
                 message="missing file_path for txt real parser",
                 status_code=400,
             )
         path = Path(file_path)
         if not path.exists():
             raise AppError(
-                code=ERROR_CODE.DOC_PARSE_FAILED,
+                code=ERROR_CODE.DOC_SOURCE_NOT_FOUND,
                 message="txt source file not found",
-                status_code=400,
+                status_code=404,
                 details={"file_path": file_path},
             )
 

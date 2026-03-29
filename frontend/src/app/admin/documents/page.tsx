@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { SectionBlock } from "@/components/layout/section-block";
 import { demoDocuments } from "@/features/admin/mock-data";
@@ -6,6 +9,20 @@ import { demoDocuments } from "@/features/admin/mock-data";
 export default function DocumentsPage(): React.JSX.Element {
   return (
     <SectionBlock title="文档管理" description="可先开发：上传面板、文档表格、状态标签。">
+      <Card>
+        <CardTitle>文档上传</CardTitle>
+        <CardDescription>最小闭环入口：可见上传区域与任务状态跳转。当前为联调占位，不触发真实上传。</CardDescription>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <input className="h-10 rounded-lg border border-[var(--border)] bg-white px-3 text-sm" placeholder="kb_id" defaultValue="kb_hr" />
+          <input className="h-10 rounded-lg border border-[var(--border)] bg-white px-3 text-sm md:col-span-2" type="file" />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <Button variant="secondary">上传文档（占位）</Button>
+          <Link href="/admin/tasks" className="text-sm text-[var(--brand)] hover:underline">
+            查看任务状态
+          </Link>
+        </div>
+      </Card>
       <Card className="overflow-x-auto">
         <CardTitle>文档列表（占位）</CardTitle>
         <CardDescription>状态字段遵循 PRD：doc_id/kb_id/source/format/version/status。</CardDescription>

@@ -2,7 +2,7 @@ import pytest
 
 from app.core.config import Settings
 from app.repositories.vector_repository import InMemoryVectorRepository
-from app.services.embedding_provider import MockEmbeddingProvider
+from app.services.embedding_provider import EmbeddingProviderError, MockEmbeddingProvider
 from app.services.vector_access_factory import build_vector_access_runtime
 
 
@@ -50,7 +50,7 @@ def test_runtime_should_fallback_when_real_provider_or_repository_not_ready() ->
 
 
 def test_runtime_should_raise_when_fallback_disabled_and_real_not_ready() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(EmbeddingProviderError):
         build_vector_access_runtime(
             _build_settings(
                 embedding_provider="openai_compatible",

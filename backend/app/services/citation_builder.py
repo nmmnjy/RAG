@@ -7,7 +7,7 @@ from app.schemas.retrieval import HybridRetrieveHit
 class CitationBuilder:
     """Builds stable frontend citation payload from module-04 hits."""
 
-    def build(self, hits: list[HybridRetrieveHit]) -> list[AnswerCitation]:
+    def build(self, hits: list[HybridRetrieveHit], *, snippet_max_chars: int = 200) -> list[AnswerCitation]:
         citations: list[AnswerCitation] = []
         for index, hit in enumerate(hits, start=1):
             source = None
@@ -20,7 +20,7 @@ class CitationBuilder:
                     doc_id=hit.doc_id,
                     kb_id=hit.kb_id,
                     section_path=hit.section_path,
-                    snippet=hit.content[:200],
+                    snippet=hit.content[:snippet_max_chars],
                     score_final=hit.score_final,
                     source=source,
                     citation=hit.citation,
