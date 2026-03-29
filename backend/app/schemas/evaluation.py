@@ -22,6 +22,7 @@ class EvaluationDimension(str, Enum):
 class GateRuleType(str, Enum):
     pass_rate_min = "pass_rate_min"
     dimension_must_pass = "dimension_must_pass"
+    check_name_must_pass = "check_name_must_pass"
 
 
 class RetrievalEvalConfig(BaseModel):
@@ -46,6 +47,9 @@ class EvaluationAssertions(BaseModel):
     expected_refuse_reason: str | None = None
     expected_top_hit_chunk_id: str | None = None
     require_non_empty_citations: bool = True
+    min_answer_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    evidence_text: str | None = None
+    require_evidence_hit: bool = False
 
 
 class OfflineEvaluationCaseInput(BaseModel):
@@ -100,6 +104,7 @@ class ReleaseGateRule(BaseModel):
     rule_type: GateRuleType
     threshold_value: float | None = None
     target_dimension: EvaluationDimension | None = None
+    target_check_name: str | None = None
     description: str = ""
     enabled: bool = True
 
@@ -115,6 +120,8 @@ class ReleaseGateResult(BaseModel):
 class OfflineEvaluationSummary(BaseModel):
     case_count: int
     case_passed_count: int
+    answerable_case_count: int
+    answerable_case_passed_count: int
     check_count: int
     check_passed_count: int
     check_failed_count: int

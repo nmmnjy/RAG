@@ -1,0 +1,338 @@
+{
+  "report_id": "eval_1b84440fadc2",
+  "dataset_id": "qa_demo_v1",
+  "dataset_version": "2026.03.28-r2",
+  "generated_at": "2026-03-28T16:16:05.272816Z",
+  "summary": {
+    "case_count": 1,
+    "case_passed_count": 1,
+    "answerable_case_count": 1,
+    "answerable_case_passed_count": 1,
+    "check_count": 15,
+    "check_passed_count": 15,
+    "check_failed_count": 0,
+    "pass_rate": 1.0
+  },
+  "gate_results": [
+    {
+      "rule_name": "gate_pass_rate_min_0_90",
+      "passed": true,
+      "metric_value": 1.0,
+      "assertion_result": ">=0.9",
+      "failure_reason": null
+    },
+    {
+      "rule_name": "gate_parse_dimension_must_pass",
+      "passed": true,
+      "metric_value": 0,
+      "assertion_result": "failed_case_count == 0",
+      "failure_reason": null
+    },
+    {
+      "rule_name": "gate_retrieval_dimension_must_pass",
+      "passed": true,
+      "metric_value": 0,
+      "assertion_result": "failed_case_count == 0",
+      "failure_reason": null
+    },
+    {
+      "rule_name": "gate_answer_dimension_must_pass",
+      "passed": true,
+      "metric_value": 0,
+      "assertion_result": "failed_case_count == 0",
+      "failure_reason": null
+    },
+    {
+      "rule_name": "gate_answerable_evidence_hit_must_pass",
+      "passed": true,
+      "metric_value": 0,
+      "assertion_result": "failed_check_count == 0",
+      "failure_reason": null
+    }
+  ],
+  "release_blocked": false,
+  "case_reports": [
+    {
+      "case_id": "qa_answerable_case_v1",
+      "case_name": "可答样本-发布流程规范",
+      "passed": true,
+      "dimensions": [
+        {
+          "dimension_name": "parse_structured",
+          "passed": true,
+          "checks": [
+            {
+              "check_name": "parse_status_succeeded",
+              "dimension_name": "parse_structured",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "status=succeeded",
+              "failure_reason": null
+            },
+            {
+              "check_name": "parse_section_count_min",
+              "dimension_name": "parse_structured",
+              "passed": true,
+              "metric_value": 1,
+              "assertion_result": ">=1",
+              "failure_reason": null
+            },
+            {
+              "check_name": "parse_blocks_non_empty",
+              "dimension_name": "parse_structured",
+              "passed": true,
+              "metric_value": 2,
+              "assertion_result": "non_empty_blocks=2/2",
+              "failure_reason": null
+            }
+          ]
+        },
+        {
+          "dimension_name": "chunk_quality",
+          "passed": true,
+          "checks": [
+            {
+              "check_name": "chunk_count_min",
+              "dimension_name": "chunk_quality",
+              "passed": true,
+              "metric_value": 1,
+              "assertion_result": ">=1",
+              "failure_reason": null
+            },
+            {
+              "check_name": "chunk_contract_required_fields",
+              "dimension_name": "chunk_quality",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "chunk_id/doc_id/content/token_count 必须有效",
+              "failure_reason": null
+            },
+            {
+              "check_name": "chunk_section_path_presence",
+              "dimension_name": "chunk_quality",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "section_path 必须非空",
+              "failure_reason": null
+            }
+          ]
+        },
+        {
+          "dimension_name": "retrieval_quality",
+          "passed": true,
+          "checks": [
+            {
+              "check_name": "retrieval_hit_count_min",
+              "dimension_name": "retrieval_quality",
+              "passed": true,
+              "metric_value": 1,
+              "assertion_result": ">=1",
+              "failure_reason": null
+            },
+            {
+              "check_name": "retrieval_contract_required_fields",
+              "dimension_name": "retrieval_quality",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "chunk_id/score_vector/score_keyword 必须存在",
+              "failure_reason": null
+            },
+            {
+              "check_name": "retrieval_expected_top_hit",
+              "dimension_name": "retrieval_quality",
+              "passed": true,
+              "metric_value": "chk_doc_demo_answerable_001_0000",
+              "assertion_result": "expected=None",
+              "failure_reason": null
+            }
+          ]
+        },
+        {
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "checks": [
+            {
+              "check_name": "answer_contract_required_fields",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "answer/citations/confidence/refuse_reason 必须可解析",
+              "failure_reason": null
+            },
+            {
+              "check_name": "answer_non_empty_for_answerable",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": 186,
+              "assertion_result": "answerable 场景 answer 长度 > 0",
+              "failure_reason": null
+            },
+            {
+              "check_name": "answer_refusal_behavior",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": null,
+              "assertion_result": "expected=None",
+              "failure_reason": null
+            },
+            {
+              "check_name": "answer_citations_non_empty_when_answered",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": 1,
+              "assertion_result": "answered 场景 citations >= 1",
+              "failure_reason": null
+            },
+            {
+              "check_name": "answer_confidence_min_for_answerable",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": 0.204,
+              "assertion_result": ">=0.0001",
+              "failure_reason": null
+            },
+            {
+              "check_name": "answer_evidence_hit_for_answerable",
+              "dimension_name": "answer_quality",
+              "passed": true,
+              "metric_value": "answer",
+              "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
+              "failure_reason": null
+            }
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "check_name": "parse_status_succeeded",
+          "dimension_name": "parse_structured",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "status=succeeded",
+          "failure_reason": null
+        },
+        {
+          "check_name": "parse_section_count_min",
+          "dimension_name": "parse_structured",
+          "passed": true,
+          "metric_value": 1,
+          "assertion_result": ">=1",
+          "failure_reason": null
+        },
+        {
+          "check_name": "parse_blocks_non_empty",
+          "dimension_name": "parse_structured",
+          "passed": true,
+          "metric_value": 2,
+          "assertion_result": "non_empty_blocks=2/2",
+          "failure_reason": null
+        },
+        {
+          "check_name": "chunk_count_min",
+          "dimension_name": "chunk_quality",
+          "passed": true,
+          "metric_value": 1,
+          "assertion_result": ">=1",
+          "failure_reason": null
+        },
+        {
+          "check_name": "chunk_contract_required_fields",
+          "dimension_name": "chunk_quality",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "chunk_id/doc_id/content/token_count 必须有效",
+          "failure_reason": null
+        },
+        {
+          "check_name": "chunk_section_path_presence",
+          "dimension_name": "chunk_quality",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "section_path 必须非空",
+          "failure_reason": null
+        },
+        {
+          "check_name": "retrieval_hit_count_min",
+          "dimension_name": "retrieval_quality",
+          "passed": true,
+          "metric_value": 1,
+          "assertion_result": ">=1",
+          "failure_reason": null
+        },
+        {
+          "check_name": "retrieval_contract_required_fields",
+          "dimension_name": "retrieval_quality",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "chunk_id/score_vector/score_keyword 必须存在",
+          "failure_reason": null
+        },
+        {
+          "check_name": "retrieval_expected_top_hit",
+          "dimension_name": "retrieval_quality",
+          "passed": true,
+          "metric_value": "chk_doc_demo_answerable_001_0000",
+          "assertion_result": "expected=None",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_contract_required_fields",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "answer/citations/confidence/refuse_reason 必须可解析",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_non_empty_for_answerable",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": 186,
+          "assertion_result": "answerable 场景 answer 长度 > 0",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_refusal_behavior",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": null,
+          "assertion_result": "expected=None",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_citations_non_empty_when_answered",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": 1,
+          "assertion_result": "answered 场景 citations >= 1",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_confidence_min_for_answerable",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": 0.204,
+          "assertion_result": ">=0.0001",
+          "failure_reason": null
+        },
+        {
+          "check_name": "answer_evidence_hit_for_answerable",
+          "dimension_name": "answer_quality",
+          "passed": true,
+          "metric_value": "answer",
+          "assertion_result": "answer 或 citation.snippet 命中 evidence_text",
+          "failure_reason": null
+        }
+      ],
+      "output_summary": {
+        "chunk_count": 1,
+        "retrieval_hit_count": 1,
+        "answer_refuse_reason": null,
+        "answer_citation_count": 1,
+        "is_expected_answerable": true,
+        "is_must_hit_evidence_case": true,
+        "answerable_chain_passed": true
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ from app.schemas.document_parse import StructuredBlock, StructuredBlockType
 
 
 _LIST_PREFIX_PATTERN = re.compile(r"^(\-|\*|\+|\d+\.)\s+")
+_CODE_FENCE_PATTERN = re.compile(r"^```")
 
 
 def estimate_token_count(text: str) -> int:
@@ -28,6 +29,18 @@ def detect_special_structure(block: StructuredBlock) -> SpecialStructureType | N
     if _LIST_PREFIX_PATTERN.match(content):
         return SpecialStructureType.list
     return None
+
+
+def is_code_fence_line(content: str) -> bool:
+    return bool(_CODE_FENCE_PATTERN.match(content.strip()))
+
+
+def split_text_to_sentence_units(content: str) -> list[str]:
+    normalized = content.strip()
+    if not normalized:
+        return []
+    parts = re.split(r"(?<=[。！？!?；;.])\s*", normalized)
+    return [item.strip() for item in parts if item.strip()]
 
 
 def render_block_content(block: StructuredBlock) -> str:

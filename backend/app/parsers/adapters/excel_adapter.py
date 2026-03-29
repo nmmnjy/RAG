@@ -1,6 +1,5 @@
-from app.parsers.adapters.base import ParserAdapter
+from app.parsers.adapters.base import ParseInput, ParserAdapter
 from app.schemas.document_parse import (
-    DocumentMetadata,
     StructuredBlock,
     StructuredBlockType,
     StructuredDocument,
@@ -13,7 +12,8 @@ class ExcelParserAdapter(ParserAdapter):
     def adapter_name(self) -> str:
         return "excel_parser_adapter"
 
-    def parse(self, metadata: DocumentMetadata) -> StructuredDocument:
+    def parse(self, parse_input: ParseInput) -> StructuredDocument:
+        metadata = parse_input.metadata
         section = StructuredSection(
             section_id=f"{metadata.doc_id}_sheet_1",
             title="Sheet1",

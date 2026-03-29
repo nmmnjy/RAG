@@ -5,6 +5,7 @@ import uuid
 from app.core.config import settings
 from app.core.errors import AppError, ERROR_CODE
 from app.core.logging import build_log_payload, get_logger
+from app.parsers.adapters.base import ParseInput
 from app.parsers.registry import parser_registry
 from app.repositories.document_parse_repository import document_parse_repository
 from app.schemas.document_parse import (
@@ -61,14 +62,25 @@ class DocumentParseService:
             status=task.status,
         )
         try:
-            adapter = parser_registry.get(task.format)
-            structured_document = adapter.parse(metadata)
+            parse_input = ParseInput(metadata=metadata, file_path=self._resolve_file_path(task.source))
+            structured_document, parser_mode = parser_registry.parse(parse_input)
             state_machine.assert_transition(task.status, DocumentStatus.succeeded)
             task.status = DocumentStatus.succeeded
             structured_document.status = DocumentStatus.succeeded
             task.structured_document = structured_document
             task.error_code = None
             task.error_message = None
+            logger.info(
+                build_log_payload(
+                    task_id=task.task_id,
+                    task_type="document_parse",
+                    stage="parser_selected",
+                    parser_mode=parser_mode,
+                    parser_provider=settings.doc_parse_provider,
+                    kb_id=task.kb_id,
+                    doc_id=task.doc_id,
+                )
+            )
         except AppError as exc:
             task.retry_count += 1
             task.error_code = exc.code
@@ -98,6 +110,13 @@ class DocumentParseService:
         )
         state_machine.assert_transition(task.status, target_status)
         task.status = target_status
+
+    def _resolve_file_path(self, source: str) -> str | None:
+        if source.startswith("file://"):
+            return source.replace("file://", "", 1)
+        if source.startswith("/") or ":\\" in source:
+            return source
+        return None
 
 
 document_parse_service = DocumentParseService()

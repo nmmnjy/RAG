@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from math import sqrt
 
 from app.schemas.vectorization import VectorQueryHit, VectorQueryRequest, VectorRecord
+
+
+class VectorRepositoryType(str, Enum):
+    in_memory = "in_memory"
+    pgvector = "pgvector"
+
+
+@dataclass(frozen=True)
+class VectorRepositoryConfig:
+    repository_type: VectorRepositoryType = VectorRepositoryType.in_memory
+    db_url: str = ""
+    table_name: str = "kb_vectors"
+    enable_real_repository: bool = False
+    fallback_to_in_memory: bool = True
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -108,5 +124,60 @@ class InMemoryVectorRepository(VectorRepository):
         return hits[: request.top_k]
 
 
-vector_repository = InMemoryVectorRepository()
+class PgVectorRepository(VectorRepository):
+    """
+    Real vector repository integration slot.
 
+    This class defines the repository boundary for pgvector-based storage and retrieval.
+    """
+
+    def __init__(self, db_url: str, table_name: str = "kb_vectors") -> None:
+        self._db_url = db_url
+        self._table_name = table_name
+
+    def upsert_many(self, records: list[VectorRecord]) -> int:
+        raise RuntimeError(
+            "pgvector repository wiring is not implemented yet; "
+            "enable fallback or keep VECTOR_REPOSITORY=in_memory"
+        )
+
+    def list_by_doc_id(self, kb_id: str, doc_id: str) -> list[VectorRecord]:
+        raise RuntimeError(
+            "pgvector repository wiring is not implemented yet; "
+            "enable fallback or keep VECTOR_REPOSITORY=in_memory"
+        )
+
+    def delete_by_doc_id(self, kb_id: str, doc_id: str) -> int:
+        raise RuntimeError(
+            "pgvector repository wiring is not implemented yet; "
+            "enable fallback or keep VECTOR_REPOSITORY=in_memory"
+        )
+
+    def delete_by_chunk_ids(self, kb_id: str, doc_id: str, chunk_ids: list[str]) -> int:
+        raise RuntimeError(
+            "pgvector repository wiring is not implemented yet; "
+            "enable fallback or keep VECTOR_REPOSITORY=in_memory"
+        )
+
+    def query_similar(self, request: VectorQueryRequest) -> list[VectorQueryHit]:
+        raise RuntimeError(
+            "pgvector repository wiring is not implemented yet; "
+            "enable fallback or keep VECTOR_REPOSITORY=in_memory"
+        )
+
+
+def build_vector_repository(config: VectorRepositoryConfig) -> VectorRepository:
+    if config.repository_type == VectorRepositoryType.in_memory:
+        return InMemoryVectorRepository()
+
+    if config.repository_type == VectorRepositoryType.pgvector:
+        is_ready = config.enable_real_repository and bool(config.db_url.strip())
+        if is_ready:
+            return PgVectorRepository(db_url=config.db_url, table_name=config.table_name)
+        if config.fallback_to_in_memory:
+            return InMemoryVectorRepository()
+        raise ValueError("real vector repository is not ready and fallback_to_in_memory is disabled")
+
+    if config.fallback_to_in_memory:
+        return InMemoryVectorRepository()
+    raise ValueError(f"unsupported vector repository type: {config.repository_type}")

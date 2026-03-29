@@ -11,8 +11,14 @@ from app.schemas.chunking import (
     ChunkStrategyName,
     SpecialStructureType,
 )
-from app.schemas.document_parse import StructuredDocument
-from app.services.chunking_rules import detect_special_structure, estimate_token_count, render_block_content
+from app.schemas.document_parse import StructuredBlock, StructuredDocument
+from app.services.chunking_rules import (
+    detect_special_structure,
+    estimate_token_count,
+    is_code_fence_line,
+    render_block_content,
+    split_text_to_sentence_units,
+)
 
 
 def _split_tokens(text: str) -> list[str]:
@@ -58,7 +64,7 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
 
     @property
     def strategy_version(self) -> str:
-        return "2026.03.01"
+        return "2026.03.02"
 
     def build(self, document: StructuredDocument, params: ChunkBuildParams) -> list[ChunkRecord]:
         chunks: list[ChunkRecord] = []
@@ -94,9 +100,40 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
             draft.source_block_ids.clear()
 
         for section in document.sections:
-            for block in section.blocks:
+            block_cursor = 0
+            while block_cursor < len(section.blocks):
+                block = section.blocks[block_cursor]
                 content = render_block_content(block)
                 if not content:
+                    block_cursor += 1
+                    continue
+
+                block_section_path = block.section_path or section.section_path
+                if params.split_on_section_path_change and draft.texts and draft.section_path != block_section_path:
+                    flush_draft()
+
+                code_fence_chunk = self._collect_code_fence_chunk(
+                    section_blocks=section.blocks,
+                    start_index=block_cursor,
+                    section_path=block_section_path,
+                )
+                if code_fence_chunk and params.preserve_code_block:
+                    merged_code_content, consumed_block_ids, consumed_blocks = code_fence_chunk
+                    flush_draft()
+                    chunks.append(
+                        self._to_chunk_record(
+                            document=document,
+                            chunk_index=chunk_index,
+                            content=merged_code_content,
+                            token_count=estimate_token_count(merged_code_content),
+                            section_path=block_section_path,
+                            source_block_ids=consumed_block_ids,
+                            special_structure=SpecialStructureType.code,
+                            params=params,
+                        )
+                    )
+                    chunk_index += 1
+                    block_cursor += consumed_blocks
                     continue
 
                 special_structure = detect_special_structure(block)
@@ -108,7 +145,6 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                     or special_structure == SpecialStructureType.code
                     and params.preserve_code_block
                 )
-                block_section_path = block.section_path or section.section_path
                 block_token_count = estimate_token_count(content)
 
                 if should_preserve:
@@ -126,6 +162,7 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                         )
                     )
                     chunk_index += 1
+                    block_cursor += 1
                     continue
 
                 if block_token_count > params.max_tokens_per_chunk:
@@ -134,13 +171,17 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                         content=content,
                         max_tokens=params.max_tokens_per_chunk,
                         overlap_tokens=params.overlap_tokens,
+                        sentence_boundary_first=params.sentence_boundary_fallback_split,
                     )
                     for window in windows:
                         if estimate_token_count(window) < params.min_chunk_tokens and chunks:
                             previous = chunks[-1]
-                            previous.content = f"{previous.content}\n\n{window}".strip()
-                            previous.token_count = estimate_token_count(previous.content)
-                            continue
+                            merged_content = f"{previous.content}\n\n{window}".strip()
+                            merged_tokens = estimate_token_count(merged_content)
+                            if merged_tokens <= params.max_tokens_per_chunk:
+                                previous.content = merged_content
+                                previous.token_count = merged_tokens
+                                continue
                         chunks.append(
                             self._to_chunk_record(
                                 document=document,
@@ -154,6 +195,7 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                             )
                         )
                         chunk_index += 1
+                    block_cursor += 1
                     continue
 
                 merged_content = "\n\n".join(draft.texts + [content]).strip()
@@ -164,11 +206,65 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                 draft.texts.append(content)
                 draft.section_path = block_section_path
                 draft.source_block_ids.append(block.block_id)
+                block_cursor += 1
 
             flush_draft()
         return chunks
 
-    def _split_long_content(self, content: str, max_tokens: int, overlap_tokens: int) -> list[str]:
+    def _split_long_content(
+        self,
+        content: str,
+        max_tokens: int,
+        overlap_tokens: int,
+        sentence_boundary_first: bool,
+    ) -> list[str]:
+        if sentence_boundary_first:
+            sentence_units = split_text_to_sentence_units(content)
+            if sentence_units:
+                windows = self._split_by_sentence_units(
+                    sentence_units,
+                    max_tokens=max_tokens,
+                    overlap_tokens=overlap_tokens,
+                )
+                if windows:
+                    return windows
+        return self._split_by_fixed_token_window(content, max_tokens=max_tokens, overlap_tokens=overlap_tokens)
+
+    def _split_by_sentence_units(
+        self,
+        sentence_units: list[str],
+        max_tokens: int,
+        overlap_tokens: int,
+    ) -> list[str]:
+        del overlap_tokens
+        windows: list[str] = []
+        unit_cursor = 0
+        while unit_cursor < len(sentence_units):
+            draft_units: list[str] = []
+            while unit_cursor < len(sentence_units):
+                candidate_units = draft_units + [sentence_units[unit_cursor]]
+                if estimate_token_count(" ".join(candidate_units)) <= max_tokens:
+                    draft_units = candidate_units
+                    unit_cursor += 1
+                else:
+                    break
+
+            if not draft_units:
+                fixed_windows = self._split_by_fixed_token_window(
+                    sentence_units[unit_cursor],
+                    max_tokens=max_tokens,
+                    overlap_tokens=overlap_tokens,
+                )
+                windows.extend(fixed_windows)
+                unit_cursor += 1
+                continue
+
+            windows.append(" ".join(draft_units))
+            if unit_cursor >= len(sentence_units):
+                break
+        return windows
+
+    def _split_by_fixed_token_window(self, content: str, max_tokens: int, overlap_tokens: int) -> list[str]:
         tokens = _split_tokens(content)
         if not tokens:
             return []
@@ -182,6 +278,44 @@ class StructuredWindowChunkingStrategy(ChunkingStrategy):
                 break
             start = end - overlap_tokens
         return windows
+
+    def _collect_code_fence_chunk(
+        self,
+        section_blocks: list[StructuredBlock],
+        start_index: int,
+        section_path: list[str],
+    ) -> tuple[str, list[str], int] | None:
+        start_block = section_blocks[start_index]
+        start_content = render_block_content(start_block)
+        if not is_code_fence_line(start_content):
+            return None
+
+        start_fence_count = sum(1 for line in start_content.splitlines() if is_code_fence_line(line))
+        if start_fence_count >= 2:
+            return start_content.strip(), [start_block.block_id], 1
+
+        collected_texts = [start_content]
+        collected_block_ids = [start_block.block_id]
+        consumed_count = 1
+        found_closing_fence = False
+
+        for scan_index in range(start_index + 1, len(section_blocks)):
+            scan_block = section_blocks[scan_index]
+            scan_content = render_block_content(scan_block)
+            if not scan_content:
+                continue
+            if (scan_block.section_path or section_path) != section_path:
+                break
+            collected_texts.append(scan_content)
+            collected_block_ids.append(scan_block.block_id)
+            consumed_count += 1
+            if is_code_fence_line(scan_content):
+                found_closing_fence = True
+                break
+
+        if not found_closing_fence:
+            return None
+        return "\n".join(collected_texts).strip(), collected_block_ids, consumed_count
 
     def _to_chunk_record(
         self,

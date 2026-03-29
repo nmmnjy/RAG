@@ -4,7 +4,10 @@ from pathlib import Path
 from app.repositories.vector_repository import InMemoryVectorRepository
 from app.schemas.document_parse import StructuredDocument
 from app.schemas.retrieval import (
+    HybridFusionConfig,
     HybridRetrieveRequest,
+    HybridRetrieveTuningConfig,
+    FusionStrategyName,
     KeywordQueryRequest,
     ScoreNormalizationMethod,
 )
@@ -102,6 +105,28 @@ def test_normalize_and_fuse_should_apply_min_max_and_weighted_sum() -> None:
     assert all(score >= 0 for score in fused.values())
 
 
+def test_fuse_scores_should_change_ranking_when_weights_change() -> None:
+    vector_scores = {"c1": 0.9, "c2": 0.2}
+    keyword_scores = {"c1": 0.1, "c2": 0.95}
+    vector_heavy = HybridFusionConfig(
+        strategy_name=FusionStrategyName.weighted_sum,
+        vector_weight=0.9,
+        keyword_weight=0.1,
+    )
+    keyword_heavy = HybridFusionConfig(
+        strategy_name=FusionStrategyName.weighted_sum,
+        vector_weight=0.1,
+        keyword_weight=0.9,
+    )
+
+    result_vector_heavy = fuse_scores(vector_scores, keyword_scores, config=vector_heavy)
+    result_keyword_heavy = fuse_scores(vector_scores, keyword_scores, config=keyword_heavy)
+
+    top_vector_heavy = max(result_vector_heavy.items(), key=lambda item: item[1])[0]
+    top_keyword_heavy = max(result_keyword_heavy.items(), key=lambda item: item[1])[0]
+    assert top_vector_heavy != top_keyword_heavy
+
+
 def test_hybrid_retrieval_should_return_stable_contract_for_qa() -> None:
     document = _load_sample_document()
     service = _build_hybrid_service(document)
@@ -123,3 +148,23 @@ def test_hybrid_retrieval_should_return_stable_contract_for_qa() -> None:
     assert isinstance(hit.score_final, float)
     assert hit.citation
     assert hit.content
+
+
+def test_hybrid_retrieval_should_use_tuning_config_top_k() -> None:
+    document = _load_sample_document()
+    service = _build_hybrid_service(document)
+    request = HybridRetrieveRequest(
+        kb_id=document.kb_id,
+        doc_id=document.doc_id,
+        query_text="文档 规范",
+        tuning_config=HybridRetrieveTuningConfig(
+            top_k=1,
+            vector_top_k=6,
+            keyword_top_k=6,
+            enable_rerank=False,
+        ),
+    )
+
+    result = service.retrieve(request)
+    assert len(result.hits) == 1
+    assert result.top_k == 1

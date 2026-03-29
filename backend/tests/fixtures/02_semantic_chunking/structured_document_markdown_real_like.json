@@ -1,0 +1,107 @@
+{
+  "doc_id": "doc_md_real_001",
+  "kb_id": "kb_001",
+  "source": "file://sample.md",
+  "format": "markdown",
+  "version": "v1",
+  "status": "succeeded",
+  "sections": [
+    {
+      "section_id": "doc_md_real_001_md_sec_1",
+      "title": "Intro",
+      "heading_level": 1,
+      "section_path": [
+        "H1:Intro"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "doc_md_real_001_md_blk_1",
+          "block_type": "paragraph",
+          "content": "This is intro paragraph for markdown real parser output.",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "doc_md_real_001_md_blk_2",
+          "block_type": "paragraph",
+          "content": "- first bullet item",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "doc_md_real_001_md_blk_3",
+          "block_type": "paragraph",
+          "content": "- second bullet item",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "doc_md_real_001_md_blk_4",
+          "block_type": "paragraph",
+          "content": "```python",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "doc_md_real_001_md_blk_5",
+          "block_type": "paragraph",
+          "content": "print('hello from fenced code')",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        },
+        {
+          "block_id": "doc_md_real_001_md_blk_6",
+          "block_type": "paragraph",
+          "content": "```",
+          "section_path": [
+            "H1:Intro"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    },
+    {
+      "section_id": "doc_md_real_001_md_sec_2",
+      "title": "Details",
+      "heading_level": 2,
+      "section_path": [
+        "H2:Details"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "doc_md_real_001_md_blk_7",
+          "block_type": "paragraph",
+          "content": "This section should keep heading boundary and must not be merged into intro chunks.",
+          "section_path": [
+            "H2:Details"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "parser_mode": "real"
+  }
+}

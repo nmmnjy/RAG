@@ -14,10 +14,10 @@
 - `API_VERSION`
 
 ## 3. 部署流程（骨架）
-1. 构建后端镜像：`docker build -f ops/backend/Dockerfile.fastapi .`
+1. 构建后端镜像：`docker build -f infra/supabase/Dockerfile.fastapi .`
 2. 镜像推送到仓库（待主线程指定 registry）。
 3. 在容器平台更新服务镜像并注入环境变量。
-4. 发布后执行 `ops/scripts/health-check.ps1` 验证。
+4. 发布后执行 `infra/scripts/health-check.ps1` 验证。
 
 ## 4. 回滚流程
 1. 容器平台选择上一个稳定镜像 tag（`release-<timestamp>`）。

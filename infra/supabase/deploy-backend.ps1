@@ -19,7 +19,7 @@ if (-not $ImageTag) {
 $fullImage = "$ImageName:release-$ImageTag"
 Write-Host "Build backend image: $fullImage"
 
-docker build -f ops/backend/Dockerfile.fastapi -t $fullImage .
+docker build -f infra/supabase/Dockerfile.fastapi -t $fullImage .
 
 Write-Host "Image built. Push/deploy is platform-specific and should be executed in CI for env: $Environment"
 Write-Host "Recommended next step: tag and push image, then update service image in runtime platform."

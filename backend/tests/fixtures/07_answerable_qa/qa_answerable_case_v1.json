@@ -1,0 +1,61 @@
+{
+  "case_id": "qa_answerable_case_v1",
+  "kb_id": "kb_demo_answerable_001",
+  "doc_id": "doc_demo_answerable_001",
+  "source": "upload",
+  "format": "pdf",
+  "version": "v1",
+  "query_text": "产品上线审批必须经过安全评审吗",
+  "evidence_text": "产品上线审批必须经过安全评审，且需记录审批单号。",
+  "structured_document": {
+    "doc_id": "doc_demo_answerable_001",
+    "kb_id": "kb_demo_answerable_001",
+    "source": "upload",
+    "format": "pdf",
+    "version": "v1",
+    "status": "succeeded",
+    "sections": [
+      {
+        "section_id": "sec_01",
+        "title": "发布流程规范",
+        "heading_level": 1,
+        "section_path": [
+          "发布流程规范"
+        ],
+        "page_start": 1,
+        "page_end": 1,
+        "blocks": [
+          {
+            "block_id": "blk_01",
+            "block_type": "paragraph",
+            "content": "产品上线审批必须经过安全评审，且需记录审批单号。",
+            "section_path": [
+              "发布流程规范"
+            ],
+            "page_no": 1,
+            "table_rows": null
+          },
+          {
+            "block_id": "blk_02",
+            "block_type": "paragraph",
+            "content": "若涉及核心配置变更，还需要在发布后进行回归检查。",
+            "section_path": [
+              "发布流程规范"
+            ],
+            "page_no": 1,
+            "table_rows": null
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "fixture": "qa_answerable_case_v1"
+    }
+  },
+  "expect": {
+    "should_refuse": false,
+    "min_confidence": 0.0001,
+    "require_non_empty_citations": true,
+    "answer_should_contain_evidence_text": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "doc_id": "doc_txt_real_001",
+  "kb_id": "kb_001",
+  "source": "file://sample.txt",
+  "format": "txt",
+  "version": "v1",
+  "status": "succeeded",
+  "sections": [
+    {
+      "section_id": "doc_txt_real_001_txt_sec_1",
+      "title": "TXT Root Section",
+      "heading_level": 1,
+      "section_path": [
+        "TXT Root Section"
+      ],
+      "page_start": null,
+      "page_end": null,
+      "blocks": [
+        {
+          "block_id": "doc_txt_real_001_txt_blk_1",
+          "block_type": "paragraph",
+          "content": "Sentence one for long paragraph split test with additional descriptive words for expansion. Sentence two keeps semantic readability and adds more tokens to exceed the chunk threshold quickly. Sentence three still belongs to the same paragraph and should be cut on sentence boundaries before fallback behavior starts. Sentence four ensures total tokens are enough to trigger splitting with small max tokens in this regression case. Sentence five repeats the requirement that txt real parser output should still keep stable chunk contract fields and avoid losing context continuity.",
+          "section_path": [
+            "TXT Root Section"
+          ],
+          "page_no": null,
+          "table_rows": null
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "parser_mode": "real"
+  }
+}

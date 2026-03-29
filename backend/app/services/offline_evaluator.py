@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from app.repositories.vector_repository import InMemoryVectorRepository
 from app.schemas.answer_generation import AnswerGenerationRequest
 from app.schemas.evaluation import (
     EvaluationCheckResult,
@@ -27,13 +26,21 @@ from app.services.chunking_service import chunking_service
 from app.services.embedding_provider import MockEmbeddingProvider
 from app.services.hybrid_retrieval_service import HybridRetrievalService
 from app.services.keyword_retriever import InMemoryKeywordRetriever
+from app.services.vector_access_factory import build_vector_access_runtime
 from app.services.vector_store_service import VectorStoreService
 from app.services.vectorization_service import VectorizationService
 
 
 class OfflineEvaluator:
     def __init__(self, embedding_dim: int = 12) -> None:
-        self._embedding_provider = MockEmbeddingProvider(embedding_dim=embedding_dim)
+        runtime = build_vector_access_runtime()
+        if runtime.embedding_provider.provider_name == "mock":
+            self._embedding_provider = MockEmbeddingProvider(
+                model_name=runtime.embedding_provider.model_name,
+                embedding_dim=embedding_dim,
+            )
+        else:
+            self._embedding_provider = runtime.embedding_provider
 
     def run_dataset(
         self,
@@ -107,13 +114,28 @@ class OfflineEvaluator:
                 "retrieval_hit_count": len(output.retrieval_result.hits),
                 "answer_refuse_reason": output.answer_result.refuse_reason,
                 "answer_citation_count": len(output.answer_result.citations),
+                "is_expected_answerable": case_item.assertions.expected_refuse_reason is None,
+                "is_must_hit_evidence_case": case_item.assertions.require_evidence_hit,
+                "answerable_chain_passed": all(
+                    item.passed
+                    for item in answer_checks
+                    if item.check_name
+                    in {
+                        "answer_non_empty_for_answerable",
+                        "answer_citations_non_empty_when_answered",
+                        "answer_confidence_min_for_answerable",
+                        "answer_refusal_behavior",
+                        "answer_evidence_hit_for_answerable",
+                    }
+                ),
             },
         )
 
     def _run_pipeline(self, case_item: OfflineEvaluationCaseInput) -> OfflineEvaluationCaseOutput:
         chunk_build_result = chunking_service.build_chunks(case_item.structured_document)
+        runtime = build_vector_access_runtime()
         vector_store_service = VectorStoreService(
-            repository=InMemoryVectorRepository(),
+            repository=runtime.vector_repository,
             vectorization_service=VectorizationService(provider=self._embedding_provider),
         )
         vector_store_service.write_vectors(
@@ -323,6 +345,7 @@ class OfflineEvaluator:
         output: OfflineEvaluationCaseOutput,
     ) -> list[EvaluationCheckResult]:
         answer_result = output.answer_result
+        is_expected_answerable = case_item.assertions.expected_refuse_reason is None
         answer_field_ok = (
             bool(answer_result.answer)
             and answer_result.citations is not None
@@ -339,6 +362,31 @@ class OfflineEvaluator:
             if case_item.assertions.require_non_empty_citations and answer_result.refuse_reason is None
             else True
         )
+        answer_non_empty_ok = (len(answer_result.answer.strip()) > 0) if is_expected_answerable else True
+        confidence_min_ok = (
+            answer_result.confidence >= case_item.assertions.min_answer_confidence
+            if is_expected_answerable
+            else True
+        )
+
+        evidence_text = (case_item.assertions.evidence_text or "").strip()
+        if not is_expected_answerable or not case_item.assertions.require_evidence_hit:
+            evidence_hit_ok = True
+            evidence_hit_result = "skipped"
+        elif not evidence_text:
+            evidence_hit_ok = False
+            evidence_hit_result = "missing_evidence_text"
+        else:
+            answer_hit = evidence_text in answer_result.answer
+            citation_hit = any(evidence_text in item.snippet for item in answer_result.citations)
+            evidence_hit_ok = answer_hit or citation_hit
+            if answer_hit:
+                evidence_hit_result = "answer"
+            elif citation_hit:
+                evidence_hit_result = "citation_snippet"
+            else:
+                evidence_hit_result = "none"
+
         return [
             self._build_check(
                 check_name="answer_contract_required_fields",
@@ -346,6 +394,14 @@ class OfflineEvaluator:
                 passed=answer_field_ok,
                 assertion_result="answer/citations/confidence/refuse_reason 必须可解析",
                 failure_reason=(None if answer_field_ok else "答案输出结构不完整"),
+            ),
+            self._build_check(
+                check_name="answer_non_empty_for_answerable",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=answer_non_empty_ok,
+                metric_value=len(answer_result.answer.strip()),
+                assertion_result="answerable 场景 answer 长度 > 0",
+                failure_reason=(None if answer_non_empty_ok else "可答场景 answer 为空"),
             ),
             self._build_check(
                 check_name="answer_refusal_behavior",
@@ -365,6 +421,26 @@ class OfflineEvaluator:
                     None
                     if citation_required_ok
                     else "可答场景 citations 为空，不满足溯源基础要求"
+                ),
+            ),
+            self._build_check(
+                check_name="answer_confidence_min_for_answerable",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=confidence_min_ok,
+                metric_value=round(answer_result.confidence, 4),
+                assertion_result=f">={case_item.assertions.min_answer_confidence}",
+                failure_reason=(None if confidence_min_ok else "可答场景 confidence 低于阈值"),
+            ),
+            self._build_check(
+                check_name="answer_evidence_hit_for_answerable",
+                dimension_name=EvaluationDimension.answer_quality,
+                passed=evidence_hit_ok,
+                metric_value=evidence_hit_result,
+                assertion_result="answer 或 citation.snippet 命中 evidence_text",
+                failure_reason=(
+                    None
+                    if evidence_hit_ok
+                    else "可答场景未命中证据文本，无法确认答案受证据约束"
                 ),
             ),
         ]
@@ -395,10 +471,21 @@ class OfflineEvaluator:
         check_passed_count = sum(1 for item in checks if item.passed)
         case_count = len(case_reports)
         case_passed_count = sum(1 for item in case_reports if item.passed)
+        answerable_case_reports = [
+            item for item in case_reports if item.output_summary.get("is_must_hit_evidence_case") is True
+        ]
+        answerable_case_count = len(answerable_case_reports)
+        answerable_case_passed_count = sum(
+            1
+            for item in answerable_case_reports
+            if item.output_summary.get("answerable_chain_passed") is True
+        )
         pass_rate = round(check_passed_count / check_count, 4) if check_count else 0.0
         return OfflineEvaluationSummary(
             case_count=case_count,
             case_passed_count=case_passed_count,
+            answerable_case_count=answerable_case_count,
+            answerable_case_passed_count=answerable_case_passed_count,
             check_count=check_count,
             check_passed_count=check_passed_count,
             check_failed_count=max(check_count - check_passed_count, 0),
@@ -431,6 +518,12 @@ class OfflineEvaluator:
                 rule_type=GateRuleType.dimension_must_pass,
                 target_dimension=EvaluationDimension.answer_quality,
                 description="每个 case 的答案维度必须通过",
+            ),
+            ReleaseGateRule(
+                rule_name="gate_answerable_evidence_hit_must_pass",
+                rule_type=GateRuleType.check_name_must_pass,
+                target_check_name="answer_evidence_hit_for_answerable",
+                description="可答样本必须命中证据文本（answer 或 citation.snippet）",
             ),
         ]
 
@@ -474,6 +567,30 @@ class OfflineEvaluator:
                         metric_value=failed_case_count,
                         assertion_result="failed_case_count == 0",
                         failure_reason=(None if passed else "存在未通过指定维度的 case"),
+                    )
+                )
+                continue
+
+            if rule_item.rule_type == GateRuleType.check_name_must_pass and rule_item.target_check_name:
+                target_checks = [
+                    check
+                    for case_item in case_reports
+                    for check in case_item.checks
+                    if check.check_name == rule_item.target_check_name and check.metric_value != "skipped"
+                ]
+                failed_check_count = sum(1 for check in target_checks if not check.passed)
+                passed = bool(target_checks) and failed_check_count == 0
+                results.append(
+                    ReleaseGateResult(
+                        rule_name=rule_item.rule_name,
+                        passed=passed,
+                        metric_value=failed_check_count,
+                        assertion_result="failed_check_count == 0",
+                        failure_reason=(
+                            None
+                            if passed
+                            else "可答样本关键检查未通过或未纳入评测输入"
+                        ),
                     )
                 )
         return results

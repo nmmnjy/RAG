@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.config import settings
 from app.schemas.answer_generation import (
     AnswerGenerationRequest,
     AnswerGenerationResult,
@@ -7,7 +8,12 @@ from app.schemas.answer_generation import (
 )
 from app.schemas.retrieval import HybridRetrieveHit
 from app.services.citation_builder import CitationBuilder
-from app.services.llm_provider import LLMProvider, MockLLMProvider
+from app.services.llm_provider import (
+    LLMProvider,
+    LLMProviderError,
+    MockLLMProvider,
+    build_llm_provider,
+)
 from app.services.refusal_policy import RefusalPolicy
 
 
@@ -17,10 +23,16 @@ class AnswerGenerationService:
         llm_provider: LLMProvider | None = None,
         citation_builder: CitationBuilder | None = None,
         refusal_policy: RefusalPolicy | None = None,
+        allow_provider_fallback_to_mock: bool | None = None,
     ) -> None:
-        self._llm_provider = llm_provider or MockLLMProvider()
+        self._llm_provider = llm_provider or build_llm_provider()
         self._citation_builder = citation_builder or CitationBuilder()
         self._refusal_policy = refusal_policy or RefusalPolicy()
+        self._allow_provider_fallback_to_mock = (
+            allow_provider_fallback_to_mock
+            if allow_provider_fallback_to_mock is not None
+            else settings.llm_provider_fallback_to_mock
+        )
 
     def generate(self, request: AnswerGenerationRequest) -> AnswerGenerationResult:
         sorted_hits = sorted(
@@ -45,22 +57,34 @@ class AnswerGenerationService:
             )
 
         context_blocks = self._build_context_blocks(selected_hits)
-        llm_output = self._llm_provider.generate(
-            LLMGenerateRequest(query_text=request.query_text, context_blocks=context_blocks)
-        )
+        llm_request = LLMGenerateRequest(query_text=request.query_text, context_blocks=context_blocks)
+        fallback_reason: str | None = None
+        try:
+            llm_output = self._llm_provider.generate(llm_request)
+        except LLMProviderError as exc:
+            if self._allow_provider_fallback_to_mock and self._llm_provider.provider_name != "mock":
+                llm_output = MockLLMProvider().generate(llm_request)
+                fallback_reason = str(exc)
+            else:
+                raise
         citations = self._citation_builder.build(selected_hits)
 
         confidence = self._compute_confidence(selected_hits, llm_output.confidence_hint)
+        debug_payload = {
+            "selected_hit_count": len(selected_hits),
+            "provider_name": self._llm_provider.provider_name,
+            "model_name": self._llm_provider.model_name,
+        }
+        if fallback_reason is not None:
+            debug_payload["provider_fallback_to"] = "mock"
+            debug_payload["provider_fallback_reason"] = fallback_reason
+
         return AnswerGenerationResult(
             answer=llm_output.answer_text,
             citations=citations,
             confidence=confidence,
             refuse_reason=None,
-            debug={
-                "selected_hit_count": len(selected_hits),
-                "provider_name": self._llm_provider.provider_name,
-                "model_name": self._llm_provider.model_name,
-            },
+            debug=debug_payload,
         )
 
     @staticmethod

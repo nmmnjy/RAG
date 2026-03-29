@@ -1,0 +1,81 @@
+{
+  "dataset_id": "qa_demo_v1",
+  "dataset_version": "2026.03.28-r2",
+  "description": "可答样本最小回归数据集（fixture: qa_answerable_case_v1）",
+  "cases": [
+    {
+      "case_id": "qa_answerable_case_v1",
+      "case_name": "可答样本-发布流程规范",
+      "query_text": "产品上线审批必须经过安全评审吗",
+      "structured_document": {
+        "doc_id": "doc_demo_answerable_001",
+        "kb_id": "kb_demo_answerable_001",
+        "source": "upload",
+        "format": "pdf",
+        "version": "v1",
+        "status": "succeeded",
+        "sections": [
+          {
+            "section_id": "sec_01",
+            "title": "发布流程规范",
+            "heading_level": 1,
+            "section_path": [
+              "发布流程规范"
+            ],
+            "page_start": 1,
+            "page_end": 1,
+            "blocks": [
+              {
+                "block_id": "blk_01",
+                "block_type": "paragraph",
+                "content": "产品上线审批必须经过安全评审，且需记录审批单号。",
+                "section_path": [
+                  "发布流程规范"
+                ],
+                "page_no": 1,
+                "table_rows": null
+              },
+              {
+                "block_id": "blk_02",
+                "block_type": "paragraph",
+                "content": "若涉及核心配置变更，还需要在发布后进行回归检查。",
+                "section_path": [
+                  "发布流程规范"
+                ],
+                "page_no": 1,
+                "table_rows": null
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "fixture": "qa_answerable_case_v1"
+        }
+      },
+      "retrieve_config": {
+        "top_k": 3,
+        "vector_top_k": 6,
+        "keyword_top_k": 6,
+        "enable_rerank": false,
+        "use_doc_filter": true
+      },
+      "answer_config": {
+        "max_context_chunks": 3,
+        "min_score_threshold": 0.0,
+        "min_evidence_chunks": 1,
+        "refusal_answer_text": "抱歉，我当前无法基于现有检索证据可靠回答这个问题。"
+      },
+      "assertions": {
+        "min_section_count": 1,
+        "min_chunk_count": 1,
+        "min_retrieval_hits": 1,
+        "expected_refuse_reason": null,
+        "expected_top_hit_chunk_id": null,
+        "require_non_empty_citations": true,
+        "min_answer_confidence": 0.0001,
+        "evidence_text": "产品上线审批必须经过安全评审，且需记录审批单号。",
+        "require_evidence_hit": true
+      }
+    }
+  ]
+}

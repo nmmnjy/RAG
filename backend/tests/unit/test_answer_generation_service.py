@@ -1,6 +1,9 @@
+import pytest
+
 from app.schemas.answer_generation import AnswerGenerationRequest
 from app.schemas.retrieval import HybridRetrieveHit, HybridRetrieveResult
 from app.services.answer_generation_service import AnswerGenerationService
+from app.services.llm_provider import LLMProvider, LLMProviderError
 
 
 def _build_retrieval_result(*, score_final: float = 0.78) -> HybridRetrieveResult:
@@ -82,3 +85,50 @@ def test_answer_generation_should_refuse_when_no_hits() -> None:
     assert result.citations == []
     assert result.confidence == 0.0
     assert result.refuse_reason == "QA_CONTEXT_EMPTY"
+
+
+class _FailingLLMProvider(LLMProvider):
+    @property
+    def provider_name(self) -> str:
+        return "failing"
+
+    @property
+    def model_name(self) -> str:
+        return "failing-v1"
+
+    def generate(self, request):  # noqa: ANN001
+        raise LLMProviderError("synthetic llm error")
+
+
+def test_answer_generation_should_fallback_to_mock_when_provider_failed() -> None:
+    service = AnswerGenerationService(
+        llm_provider=_FailingLLMProvider(),
+        allow_provider_fallback_to_mock=True,
+    )
+    request = AnswerGenerationRequest(
+        kb_id="kb_01",
+        query_text="RAG 如何做溯源",
+        retrieval_result=_build_retrieval_result(),
+    )
+
+    result = service.generate(request)
+    assert result.answer
+    assert result.citations
+    assert result.confidence > 0
+    assert result.refuse_reason is None
+    assert result.debug.get("provider_fallback_to") == "mock"
+
+
+def test_answer_generation_should_raise_when_provider_failed_and_no_fallback() -> None:
+    service = AnswerGenerationService(
+        llm_provider=_FailingLLMProvider(),
+        allow_provider_fallback_to_mock=False,
+    )
+    request = AnswerGenerationRequest(
+        kb_id="kb_01",
+        query_text="RAG 如何做溯源",
+        retrieval_result=_build_retrieval_result(),
+    )
+
+    with pytest.raises(LLMProviderError):
+        service.generate(request)

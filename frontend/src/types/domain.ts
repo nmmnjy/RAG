@@ -14,14 +14,19 @@ export interface ChunkData {
   doc_id: string;
   content: string;
   token_count: number;
-  section_path: string;
+  section_path: string[];
 }
 
 export interface Citation {
+  citation_id: string;
   chunk_id: string;
-  citation: string;
-  doc_id?: string;
-  section_path?: string;
+  doc_id: string;
+  kb_id: string;
+  section_path: string[];
+  snippet: string;
+  score_final: number;
+  source: string | null;
+  citation: Record<string, unknown>;
 }
 
 export interface RetrievalResult {
@@ -29,7 +34,7 @@ export interface RetrievalResult {
   score_vector: number;
   score_keyword: number;
   score_final: number;
-  citation: string;
+  citation: Record<string, unknown>;
 }
 
 export interface QaResult {
@@ -37,6 +42,7 @@ export interface QaResult {
   citations: Citation[];
   confidence: number;
   refuse_reason: string | null;
+  debug?: Record<string, unknown>;
 }
 
 export interface QaHistoryItem {

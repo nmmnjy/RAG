@@ -16,8 +16,24 @@
 - 最小必填集合：`APP_ENV`、`APP_PORT`、`DB_URL`、`SUPABASE_URL`、`SUPABASE_KEY`、`LLM_API_KEY`、`EMBEDDING_MODEL`、`LOG_LEVEL`。
 - API 错误对象字段保留：`code`、`message`、`details`、`request_id`、`trace_id`。
 
-## 4. 文件说明
+## 4. 与 03/05 对齐的本地演示最小配置
+- 03（向量化）必填建议：
+- `EMBEDDING_PROVIDER`
+- `EMBEDDING_MODEL`
+- `EMBEDDING_DIM`
+- `VECTOR_REPOSITORY`
+- `VECTOR_REPOSITORY_ENABLE_REAL`
+- `VECTOR_REPOSITORY_FALLBACK_TO_IN_MEMORY`
+- 05（答案生成）必填建议：
+- `LLM_PROVIDER`
+- `LLM_MODEL`
+- `LLM_PROVIDER_ENABLE_REAL`
+- `LLM_PROVIDER_FALLBACK_TO_MOCK`
+- 本地演示建议直接基于：`.env.local-demo.example`
+
+## 5. 文件说明
 - `.env.shared.example`：跨环境通用键。
 - `.env.dev.example`：开发环境覆盖项。
 - `.env.test.example`：测试环境覆盖项。
 - `.env.prod.example`：生产环境覆盖项（仅占位，不含真实值）。
+- `.env.local-demo.example`：本地演示（前端+后端+评测）最小可运行模板。

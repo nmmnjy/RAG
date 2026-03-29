@@ -34,6 +34,8 @@ def test_offline_evaluation_report_should_be_serializable() -> None:
         summary=OfflineEvaluationSummary(
             case_count=1,
             case_passed_count=1,
+            answerable_case_count=1,
+            answerable_case_passed_count=1,
             check_count=4,
             check_passed_count=4,
             check_failed_count=0,

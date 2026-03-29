@@ -16,3 +16,13 @@ def test_offline_evaluator_should_run_sample_dataset_and_build_report() -> None:
     assert report.summary.check_count > 0
     assert report.summary.check_passed_count > 0
     assert report.gate_results
+    assert report.summary.answerable_case_count >= 1
+    assert report.summary.answerable_case_passed_count >= 1
+    check_names = {
+        check.check_name
+        for case_item in report.case_reports
+        for check in case_item.checks
+    }
+    assert "answer_evidence_hit_for_answerable" in check_names
+    gate_rule_names = {item.rule_name for item in report.gate_results}
+    assert "gate_answerable_evidence_hit_must_pass" in gate_rule_names

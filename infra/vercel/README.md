@@ -5,9 +5,9 @@
 2. 连接 Git 仓库，开启 Preview 与 Production。
 
 ## 2. 环境变量映射
-- `Development`：使用 `ops/environments/.env.dev.example` 同名键。
-- `Preview`：使用 `ops/environments/.env.test.example` 同名键。
-- `Production`：使用 `ops/environments/.env.prod.example` 同名键。
+- `Development`：使用 `infra/environments/.env.dev.example` 同名键。
+- `Preview`：使用 `infra/environments/.env.test.example` 同名键。
+- `Production`：使用 `infra/environments/.env.prod.example` 同名键。
 
 必须注入的前端变量：
 - `NEXT_PUBLIC_APP_ENV`

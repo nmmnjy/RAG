@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@/types/api";
+import type { ApiErrorResponse, ApiResponse } from "@/types/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -22,6 +22,6 @@ export async function httpGet<TResponse>(path: string): Promise<TResponse> {
   return data;
 }
 
-export function isApiError<T>(result: ApiResponse<T>): boolean {
+export function isApiError<T>(result: ApiResponse<T>): result is ApiErrorResponse {
   return !("data" in result);
 }

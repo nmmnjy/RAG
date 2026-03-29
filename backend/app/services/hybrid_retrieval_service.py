@@ -29,13 +29,14 @@ class HybridRetrievalService:
         self._reranker = reranker or NoopReranker()
 
     def retrieve(self, request: HybridRetrieveRequest) -> HybridRetrieveResult:
+        tuning_config = request.get_effective_tuning_config()
         query_embedding = self._embedding_provider.embed_texts([request.query_text])[0]
         vector_hits = self._vector_store_service.query_similar(
             VectorQueryRequest(
                 kb_id=request.kb_id,
                 doc_id=request.doc_id,
                 query_embedding=query_embedding,
-                top_k=request.vector_top_k,
+                top_k=tuning_config.vector_top_k,
             )
         )
         keyword_hits = self._keyword_retriever.search(
@@ -43,7 +44,7 @@ class HybridRetrievalService:
                 kb_id=request.kb_id,
                 doc_id=request.doc_id,
                 query_text=request.query_text,
-                top_k=request.keyword_top_k,
+                top_k=tuning_config.keyword_top_k,
             )
         )
 
@@ -53,7 +54,7 @@ class HybridRetrievalService:
         fused_scores = fuse_scores(
             vector_scores={item.chunk_id: item.score_vector for item in vector_hits},
             keyword_scores={item.chunk_id: item.score_keyword for item in keyword_hits},
-            config=request.fusion_config,
+            config=tuning_config.fusion_config,
         )
 
         merged_hits = self._merge_hits(
@@ -64,23 +65,26 @@ class HybridRetrievalService:
         )
         merged_hits.sort(key=lambda item: item.score_final, reverse=True)
 
-        if request.enable_rerank:
+        if tuning_config.enable_rerank:
             reranked = self._reranker.rerank(
-                RerankRequest(query_text=request.query_text, hits=merged_hits, top_k=request.top_k)
+                RerankRequest(query_text=request.query_text, hits=merged_hits, top_k=tuning_config.top_k)
             )
-            final_hits = reranked[: request.top_k]
+            final_hits = reranked[: tuning_config.top_k]
         else:
-            final_hits = merged_hits[: request.top_k]
+            final_hits = merged_hits[: tuning_config.top_k]
 
         return HybridRetrieveResult(
             kb_id=request.kb_id,
             query_text=request.query_text,
-            top_k=request.top_k,
+            top_k=tuning_config.top_k,
             hits=final_hits,
             debug={
                 "vector_hit_count": len(vector_hits),
                 "keyword_hit_count": len(keyword_hits),
                 "merged_hit_count": len(merged_hits),
+                "fusion_strategy": tuning_config.fusion_config.strategy_name.value,
+                "enable_rerank": tuning_config.enable_rerank,
+                "reranker_name": self._reranker.reranker_name,
             },
         )
 
@@ -130,4 +134,3 @@ class HybridRetrievalService:
                 )
             )
         return results
-

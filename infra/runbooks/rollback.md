@@ -12,7 +12,7 @@
 ## 执行动作
 1. 宣布进入回滚窗口，冻结新发布。
 2. 记录本次回滚 `request_id/trace_id` 样本与时间点。
-3. 回滚后执行 `ops/scripts/health-check.ps1`。
+3. 回滚后执行 `infra/scripts/health-check.ps1`。
 4. 30 分钟内观察监控指标恢复。
 
 ## 事后复盘
